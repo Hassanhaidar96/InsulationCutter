@@ -57,37 +57,33 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     else:
         return []
 
-def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb_mm):
+def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
 
     # Add big box
-    msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), 
-                       (0, big_box_height), (0, 0)], close=True)
+    msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)], close=True)
 
-    # Add small ribs - position based on Cb (bottom cover)
-    y_bottom = Cb_mm  # Start from bottom cover instead of centering
+    # Add small ribs
+    y_center = (big_box_height - small_box_height) / 2
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         x2 = center_x + small_box_width / 2
-        y1 = y_bottom
-        y2 = y_bottom + small_box_height
+        y1 = y_center
+        y2 = y_center + small_box_height
         msp.add_lwpolyline([(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)], close=True)
 
     return doc
 
-def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb_mm):
+def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height):
     fig, ax = plt.subplots()
     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue'))
-    
-    # Position ribs based on bottom cover
-    y_bottom = Cb_mm
+    y_center = (big_box_height - small_box_height) / 2
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
-        ax.add_patch(Rectangle((x1, y_bottom), small_box_width, small_box_height, 
-                              fill=None, edgecolor='red'))
-    
+        y1 = y_center
+        ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red'))
     plt.xlim(0, big_box_length)
     plt.ylim(0, big_box_height)
     plt.gca().set_aspect('equal', adjustable='box')
@@ -104,6 +100,7 @@ Ct = st.number_input('Concrete Cover top (cm)' , value=2.5)
 
 thickness_slab_cm = Cb+Ct+h_rib
 
+
 element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
 
 # Select insulation material
@@ -117,14 +114,13 @@ else:
 
 
 # Process inputs
-adjusted_h = adjust_h_for_fire_resistance(h_rib, fire_resistance)  # Now adjusting rib height directly
+adjusted_h = adjust_h_for_fire_resistance(thickness_slab_cm, fire_resistance)
 element_length_mm = get_element_length(element_length_type, num_ribs)
 big_box_length = element_length_mm + 10  # +1 cm
 big_box_height = thickness_slab_cm * 10 + 20  # +2 cm
 
 small_box_width = 18 if insulation == 'SW' else 17  # width in mm
-small_box_height_mm = (adjusted_h * 10)  # Height without additional 1.5mm (pure rib height)
-Cb_mm = Cb * 10  # Convert cm to mm
+small_box_height_mm = (adjusted_h * 10) + 1.5  # 0.15 cm to mm
 
 rib_centers = calculate_rib_centers(element_length_type, num_ribs, element_length_mm)
 
@@ -132,16 +128,14 @@ if st.button('Visualize'):
     if not rib_centers:
         st.warning('Spacing rules not defined for this configuration.')
     else:
-        fig = visualize(big_box_length, big_box_height, rib_centers, 
-                       small_box_width, small_box_height_mm, Cb_mm)
+        fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height_mm)
         st.pyplot(fig)
 
 if st.button('Download DXF'):
     if not rib_centers:
         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
     else:
-        doc = create_dxf(big_box_length, big_box_height, rib_centers, 
-                        small_box_width, small_box_height_mm, Cb_mm)
+        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height_mm)
         doc.saveas('slab_element.dxf')
         st.success('DXF file generated. Click below to download.')
         with open('slab_element.dxf', 'rb') as f:
