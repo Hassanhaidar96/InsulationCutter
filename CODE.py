@@ -214,18 +214,22 @@ if st.button('Visualize'):
 #             st.download_button('Download DXF', f, file_name='Insulation.dxf')
 
 
-if st.button('Generate and Download DXF'):
+def generate_dxf():
     if not rib_centers:
         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
-    else:
-        with st.spinner('Generating DXF...'):
-            doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb)
-            doc.saveas('Insulation.dxf')
-            
-        with open('Insulation.dxf', 'rb') as f:
-            st.download_button(
-                label='Download DXF (Right-click to save)',
-                data=f,
-                file_name='Insulation.dxf',
-                mime='application/dxf'
-            )
+        return None
+    with st.spinner('Generating DXF...'):
+        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb)
+        doc.saveas('Insulation.dxf')
+    with open('Insulation.dxf', 'rb') as f:
+        return f.read()
+
+# Single interactive download button
+dxf_data = generate_dxf()
+if dxf_data:
+    st.download_button(
+        label='Generate and Download DXF',
+        data=dxf_data,
+        file_name='Insulation.dxf',
+        mime='application/dxf'
+    )
