@@ -186,9 +186,7 @@ h_rib = st.selectbox('Height of Ribs (cm)', [11, 13, 15, 17, 19])
 Cb = st.number_input('Concrete Cover buttom (cm)' , value=2.5, step=0.5)
 Ct = st.number_input('Concrete Cover top (cm)', value=2.5, step=0.5)
 
-thickness_slab_cm = Cb+Ct+h_rib
-Cb = Cb*10
-Ct = Ct*10
+
 
 element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
 
@@ -204,9 +202,10 @@ else:
 
 # Process inputs
 Cb, Ct = adjust_h_for_fire_resistance(Cb, Ct, fire_resistance)
+
 element_length_mm = get_element_length(element_length_type, num_ribs)
 big_box_length = element_length_mm + 10  # +1 cm
-big_box_height = thickness_slab_cm * 10 + 20  # +2 cm
+big_box_height = (Cb+Ct+h_rib) * 10 + 20  # +2 cm
 
 small_box_width = 18 if insulation == 'SW' else 17  # width in mm
 small_box_height = (h_rib * 10) + 1.5  # 0.15 cm to mm
