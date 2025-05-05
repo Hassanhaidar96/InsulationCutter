@@ -107,14 +107,12 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
     msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)], close=True)
 
     # Add ribs
-    # y_center = (big_box_height - small_box_height) / 2
-    # y_center = (small_box_height/ 2 ) + Cb*10
-    y_center =   Cb*10
+    y_initial =   (Cb*10) +10 - 0.75   # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         x2 = center_x + small_box_width / 2
-        y1 = y_center
-        y2 = y_center + small_box_height
+        y1 = y_initial
+        y2 = y_initial + small_box_height
         msp.add_lwpolyline([(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)], close=True)
 
     return doc
@@ -127,12 +125,10 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue', linewidth=2))
     
     # Draw small boxes (ribs)
-    # y_center = (big_box_height - small_box_height) / 2
-    # y_center = (small_box_height/ 2 ) + Cb*10
-    y_center =   Cb*10
+    y_initial =   (Cb*10) +10 + 0.75  # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
-        y1 = y_center
+        y1 = y_initial
         ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red', linewidth=2))
     
     # Set axis limits and aspect ratio
@@ -207,12 +203,29 @@ if st.button('Visualize'):
         fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
         st.pyplot(fig)
 
-if st.button('Download DXF'):
+# if st.button('Download DXF'):
+#     if not rib_centers:
+#         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
+#     else:
+#         doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
+#         doc.saveas('Insulation.dxf')
+#         st.success('DXF file generated. Click below to download.')
+#         with open('Insulation.dxf', 'rb') as f:
+#             st.download_button('Download DXF', f, file_name='Insulation.dxf')
+
+
+if st.button('Generate and Download DXF'):
     if not rib_centers:
         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
     else:
-        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
-        doc.saveas('slab_element.dxf')
-        st.success('DXF file generated. Click below to download.')
-        with open('slab_element.dxf', 'rb') as f:
-            st.download_button('Download DXF', f, file_name='slab_element.dxf')
+        with st.spinner('Generating DXF...'):
+            doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb)
+            doc.saveas('Insulation.dxf')
+            
+        with open('Insulation.dxf', 'rb') as f:
+            st.download_button(
+                label='Download DXF (Right-click to save)',
+                data=f,
+                file_name='Insulation.dxf',
+                mime='application/dxf'
+            )
