@@ -238,8 +238,10 @@ st.title('DXF Generator for FIRIKA Insulation')
 element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
 
 if element_length_type == '0.5m':
-    num_ribs = st.number_input('Number of ribs', min_value=2, max_value=5, value=2, step=1)
-else:
+    num_ribs = st.selectbox('Number of ribs', [2, 3, 4, 5])
+elif element_length_type == 'compact':
+    num_ribs = st.number_input('Number of ribs', min_value=1, max_value=10, value=1, step=1)
+else:  # 1m case
     num_ribs = st.number_input('Number of ribs', min_value=2, max_value=10, value=2, step=1)
 
 h_rib = st.selectbox('Height of Ribs (cm)', [11, 13, 15, 17, 19])
