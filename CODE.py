@@ -98,24 +98,6 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     else:
         return []
 
-# def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
-#     doc = ezdxf.new(dxfversion='R2010', setup=True)
-#     doc.units = units.MM
-#     msp = doc.modelspace()
-
-#     # Add big box
-#     msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)], close=True)
-
-#     # Add ribs
-#     y_initial =   (Cb*10) +10 - 0.75   # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
-#     for center_x in rib_centers:
-#         x1 = center_x - small_box_width / 2
-#         x2 = center_x + small_box_width / 2
-#         y1 = y_initial
-#         y2 = y_initial + small_box_height
-#         msp.add_lwpolyline([(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)], close=True)
-
-#     return doc
  
 def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
@@ -170,46 +152,78 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
     
     return doc
 
-# def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
-#     fig, ax = plt.subplots()
+
+# def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
+#     fig, ax = plt.subplots(figsize=(10, 6))
     
 #     # Draw the big box (slab)
-#     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue', linewidth=2))
+#     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, 
+#                 fill=None, edgecolor='blue', linewidth=2))
     
-#     # Draw small boxes (ribs)
-#     y_initial =   (Cb*10) +10 + 0.75  # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
+#     # Calculate rib positions
+#     y_initial = (Cb * 10) + 10 + 0.75  # Base Y position
+#     y_center = y_initial + (small_box_height / 2)  # Vertical center of ribs
+#     rib_edges = []  # To store (left, right) edges of ribs
+    
+#     # Draw ribs and collect their edges
 #     for center_x in rib_centers:
 #         x1 = center_x - small_box_width / 2
-#         y1 = y_initial
-#         ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red', linewidth=2))
+#         x2 = center_x + small_box_width / 2
+#         ax.add_patch(Rectangle((x1, y_initial), small_box_width, small_box_height,
+#                     fill=None, edgecolor='red', linewidth=2))
+#         rib_edges.append((x1, x2))
+    
+#     # Create connection segments (skipping areas inside ribs)
+#     connection_segments = []
+    
+#     # Start from left edge of slab
+#     current_pos = 0
+    
+#     # Sort ribs by their left edge
+#     rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
+    
+#     for rib_left, rib_right in rib_edges_sorted:
+#         if current_pos < rib_left:
+#             # Add segment from current position to left of rib
+#             connection_segments.append((current_pos, rib_left))
+#         current_pos = rib_right  # Skip the rib area
+    
+#     # Add final segment from last rib to right edge
+#     if current_pos < big_box_length:
+#         connection_segments.append((current_pos, big_box_length))
+    
+#     # Draw connecting lines for each segment
+#     for start, end in connection_segments:
+#         ax.plot([start, end], [y_center, y_center], 
+#                color='green', linestyle='-', linewidth=1.5)
     
 #     # Set axis limits and aspect ratio
-#     plt.xlim(0, big_box_length)
-#     plt.ylim(0, big_box_height)
-#     plt.gca().set_aspect('equal', adjustable='box')
+#     ax.set_xlim(0, big_box_length)
+#     ax.set_ylim(0, big_box_height)
+#     ax.set_aspect('equal', adjustable='box')
     
-#     # Customize x and y ticks (show start, end, and major divisions)
-#     xticks = [0] + rib_centers + [big_box_length]
-#     yticks = [0, big_box_height / 2, big_box_height]
+#     # Customize ticks
+#     xticks = [0] + [x for rib in rib_edges for x in rib] + [big_box_length]
+#     yticks = [0, y_initial, y_initial + small_box_height, big_box_height]
     
-#     plt.xticks(xticks, rotation=45)  # Rotate x-labels for better readability
-#     plt.yticks(yticks)
+#     ax.set_xticks(xticks)
+#     ax.set_yticks(yticks)
+#     plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
     
-#     # Force 1 decimal place on all ticks
-#     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # X-axis: 1 decimal
-#     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # Y-axis: 1 decimal
+#     # Formatting
+#     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+#     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+#     ax.set_xlabel("Length (mm)", fontsize=12)
+#     ax.set_ylabel("Height (mm)", fontsize=12)
     
-#     # Label axes with units (assuming meters)
-#     ax.set_xlabel("Length (m)", fontsize=12)
-#     ax.set_ylabel("Height (m)", fontsize=12)
+#     # Highlight slab corners only
+#     ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)
+#     ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)
     
-#     # Highlight the last point on x and y axes
-#     ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)  # Last x-point
-#     ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)   # Last y-point
-    
-#     # Add grid for better reference
+#     # Add grid
 #     ax.grid(True, linestyle='--', alpha=0.5)
     
+#     plt.tight_layout()
 #     return fig
 
 def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
@@ -234,24 +248,18 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     
     # Create connection segments (skipping areas inside ribs)
     connection_segments = []
-    
-    # Start from left edge of slab
-    current_pos = 0
-    
-    # Sort ribs by their left edge
+    current_pos = 0  # Start from left edge
     rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
     
     for rib_left, rib_right in rib_edges_sorted:
         if current_pos < rib_left:
-            # Add segment from current position to left of rib
             connection_segments.append((current_pos, rib_left))
-        current_pos = rib_right  # Skip the rib area
+        current_pos = rib_right
     
-    # Add final segment from last rib to right edge
     if current_pos < big_box_length:
         connection_segments.append((current_pos, big_box_length))
     
-    # Draw connecting lines for each segment
+    # Draw connecting lines
     for start, end in connection_segments:
         ax.plot([start, end], [y_center, y_center], 
                color='green', linestyle='-', linewidth=1.5)
@@ -261,21 +269,30 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     ax.set_ylim(0, big_box_height)
     ax.set_aspect('equal', adjustable='box')
     
-    # Customize ticks
-    xticks = [0] + [x for rib in rib_edges for x in rib] + [big_box_length]
-    yticks = [0, y_initial, y_initial + small_box_height, big_box_height]
+    # CUSTOM X-TICKS SHOWING CENTER-TO-CENTER DISTANCES
+    xticks = [0] + rib_centers + [big_box_length]  # Now using rib centers instead of edges
+    
+    # Calculate and display center-to-center distances as labels
+    xtick_labels = [f"{0:.1f}"]
+    for i in range(1, len(rib_centers)):
+        distance = rib_centers[i] - rib_centers[i-1]
+        xtick_labels.append(f"{distance:.1f}")
+    xtick_labels.append(f"{big_box_length - rib_centers[-1]:.1f}" if rib_centers else f"{big_box_length:.1f}")
     
     ax.set_xticks(xticks)
+    ax.set_xticklabels(xtick_labels)
+    
+    # Y-axis ticks remain the same
+    yticks = [0, y_initial, y_initial + small_box_height, big_box_height]
     ax.set_yticks(yticks)
-    plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     
     # Formatting
-    ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-    ax.set_xlabel("Length (mm)", fontsize=12)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+    ax.set_xlabel("Center-to-Center Distances (mm)", fontsize=12)  # Updated label
     ax.set_ylabel("Height (mm)", fontsize=12)
     
-    # Highlight slab corners only
+    # Highlight points
     ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)
     ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)
     
@@ -284,6 +301,7 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     
     plt.tight_layout()
     return fig
+
 
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation')
