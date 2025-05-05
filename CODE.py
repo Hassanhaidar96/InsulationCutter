@@ -98,7 +98,7 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     else:
         return []
 
-def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height):
+def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
@@ -134,14 +134,15 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
 
 # More Refined Labelings 
 
-def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height):
+def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
     fig, ax = plt.subplots()
     
     # Draw the big box (slab)
     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue', linewidth=2))
     
     # Draw small boxes (ribs)
-    y_center = (big_box_height - small_box_height) / 2
+    # y_center = (big_box_height - small_box_height) / 2
+    y_center = (small_box_height/ 2 ) + Cb
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         y1 = y_center
@@ -216,14 +217,14 @@ if st.button('Visualize'):
     if not rib_centers:
         st.warning('Spacing rules not defined for this configuration.')
     else:
-        fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height)
+        fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
         st.pyplot(fig)
 
 if st.button('Download DXF'):
     if not rib_centers:
         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
     else:
-        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height)
+        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
         doc.saveas('slab_element.dxf')
         st.success('DXF file generated. Click below to download.')
         with open('slab_element.dxf', 'rb') as f:
