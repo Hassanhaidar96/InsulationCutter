@@ -49,10 +49,51 @@ def get_centers_1m(num_ribs):
     else:
         return []
 
+def get_centers_05m(num_ribs):
+    if num_ribs == 2:
+        return [114.5, 414.5]
+    elif num_ribs == 3:
+        return [114.5, 214.5, 414.5]
+    elif num_ribs == 4:
+        return [114.5, 214.5, 314.5, 414.5]
+    elif num_ribs == 5:
+        return [64.5, 164.5, 264.5, 364.5, 464.5]
+    else:
+        return []
+    
+def get_centers_compact(num_ribs):
+    
+    if num_ribs == 1:
+        return [55]
+    if num_ribs == 2:
+        return [64.5, 164.5]
+    elif num_ribs == 3:
+        return [64.5, 164.5, 264.5]
+    elif num_ribs == 4:
+        return [64.5, 164.5, 264.5, 364.5]
+    elif num_ribs == 5:
+        return [64.5, 164.5, 264.5, 364.5, 464.5]
+    elif num_ribs == 6:
+        return [64.5, 164.5, 264.5, 364.5, 464.5 , 564.5]
+    elif num_ribs == 7:
+        return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5]
+    elif num_ribs == 8:
+        return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5]
+    elif num_ribs == 9:
+        return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5, 864.5]
+    elif num_ribs == 10:
+        return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5, 864.5, 964.5]
+    else:
+        return []
+
+
 def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     if element_length_type == '1m':
         return get_centers_1m(num_ribs)
-    
+    if element_length_type == '0.5m':
+        return get_centers_05m(num_ribs)
+    if element_length_type == 'compact':
+        return get_centers_compact(num_ribs)
     ### For compact and Half to be defined
     else:
         return []
