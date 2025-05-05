@@ -235,7 +235,7 @@ def visualize(big_board_length, big_board_height, element_x_offset, element_y_of
     # Draw connecting lines for each segment
     for start, end in connection_segments:
         ax.plot([start, end], [y_center, y_center], 
-               color='green', linestyle='-', linewidth=1.5))
+               color='green', linestyle='-', linewidth=1.5)
     
     # Set axis limits and aspect ratio
     ax.set_xlim(0, big_board_length)
