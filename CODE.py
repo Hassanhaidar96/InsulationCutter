@@ -11,13 +11,13 @@ from ezdxf import units
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
-def adjust_h_for_fire_resistance(thickness_slab_cm, fire_resistance):
+def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
-        return thickness_slab_cm - 1*2
+        return Cb - 1, Ct - 1
     elif fire_resistance == 'REI90':
-        return thickness_slab_cm - 1.5*2
+        return Cb - 1.5, Ct - 1.5
     else:
-        return thickness_slab_cm
+        return Cb, Ct
 
 def get_element_length(element_length_type, num_ribs):
     if element_length_type == '1m':
@@ -94,7 +94,6 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
         return get_centers_05m(num_ribs)
     if element_length_type == 'compact':
         return get_centers_compact(num_ribs)
-    ### For compact and Half to be defined
     else:
         return []
 
@@ -106,8 +105,9 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
     # Add big box
     msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)], close=True)
 
-    # Add small ribs
-    y_center = (big_box_height - small_box_height) / 2
+    # Add ribs
+    # y_center = (big_box_height - small_box_height) / 2
+    y_center = (small_box_height/ 2 ) + Cb
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         x2 = center_x + small_box_width / 2
@@ -140,7 +140,8 @@ Cb = st.number_input('Concrete Cover buttom (cm)' , value=2.5)
 Ct = st.number_input('Concrete Cover top (cm)' , value=2.5)
 
 thickness_slab_cm = Cb+Ct+h_rib
-
+Cb = Cb*10
+Ct = Ct*10
 
 element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
 
@@ -155,13 +156,13 @@ else:
 
 
 # Process inputs
-adjusted_h = adjust_h_for_fire_resistance(thickness_slab_cm, fire_resistance)
+Cb, Ct = adjust_h_for_fire_resistance(Cb, Ct, fire_resistance)
 element_length_mm = get_element_length(element_length_type, num_ribs)
 big_box_length = element_length_mm + 10  # +1 cm
 big_box_height = thickness_slab_cm * 10 + 20  # +2 cm
 
 small_box_width = 18 if insulation == 'SW' else 17  # width in mm
-small_box_height_mm = (adjusted_h * 10) + 1.5  # 0.15 cm to mm
+small_box_height = (h_rib * 10) + 1.5  # 0.15 cm to mm
 
 rib_centers = calculate_rib_centers(element_length_type, num_ribs, element_length_mm)
 
@@ -169,14 +170,14 @@ if st.button('Visualize'):
     if not rib_centers:
         st.warning('Spacing rules not defined for this configuration.')
     else:
-        fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height_mm)
+        fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height)
         st.pyplot(fig)
 
 if st.button('Download DXF'):
     if not rib_centers:
         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
     else:
-        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height_mm)
+        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height)
         doc.saveas('slab_element.dxf')
         st.success('DXF file generated. Click below to download.')
         with open('slab_element.dxf', 'rb') as f:
