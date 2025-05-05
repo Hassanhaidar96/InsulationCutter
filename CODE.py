@@ -98,68 +98,184 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     else:
         return []
 
-def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
+# def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
+#     doc = ezdxf.new(dxfversion='R2010', setup=True)
+#     doc.units = units.MM
+#     msp = doc.modelspace()
+
+#     # Add big box
+#     msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)], close=True)
+
+#     # Add ribs
+#     y_initial =   (Cb*10) +10 - 0.75   # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
+#     for center_x in rib_centers:
+#         x1 = center_x - small_box_width / 2
+#         x2 = center_x + small_box_width / 2
+#         y1 = y_initial
+#         y2 = y_initial + small_box_height
+#         msp.add_lwpolyline([(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)], close=True)
+
+#     return doc
+ 
+def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
 
-    # Add big box
-    msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)], close=True)
+    # Add big box (slab)
+    msp.add_lwpolyline(
+        [(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)],
+        close=True
+    )
 
-    # Add ribs
-    y_initial =   (Cb*10) +10 - 0.75   # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
+    # Calculate rib positions
+    y_initial = (Cb * 10) + 10 - 0.75  # Base Y position
+    y_center = y_initial + (small_box_height / 2)  # Vertical center of ribs
+    rib_edges = []  # Store left and right edges of all ribs
+    
+    # Add ribs and collect their edges
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         x2 = center_x + small_box_width / 2
         y1 = y_initial
         y2 = y_initial + small_box_height
-        msp.add_lwpolyline([(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)], close=True)
+        
+        # Add rib
+        msp.add_lwpolyline(
+            [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)],
+            close=True
+        )
+        
+        rib_edges.append((x1, x2))  # Store left and right edges
 
+    # Create list of all connection points (including slab edges)
+    connection_points = [0]  # Start with left slab edge
+    for rib in rib_edges:
+        connection_points.extend(rib)  # Add left and right of each rib
+    connection_points.append(big_box_length)  # Add right slab edge
+    
+    # Sort points and remove duplicates
+    connection_points = sorted(list(set(connection_points)))
+    
+    # Draw center connecting lines (between ribs and to slab edges)
+    for i in range(len(connection_points)-1):
+        x_start = connection_points[i]
+        x_end = connection_points[i+1]
+        msp.add_line((x_start, y_center), (x_end, y_center))
+    
     return doc
- 
 
-def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
-    fig, ax = plt.subplots()
+# def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
+#     fig, ax = plt.subplots()
+    
+#     # Draw the big box (slab)
+#     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue', linewidth=2))
+    
+#     # Draw small boxes (ribs)
+#     y_initial =   (Cb*10) +10 + 0.75  # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
+#     for center_x in rib_centers:
+#         x1 = center_x - small_box_width / 2
+#         y1 = y_initial
+#         ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red', linewidth=2))
+    
+#     # Set axis limits and aspect ratio
+#     plt.xlim(0, big_box_length)
+#     plt.ylim(0, big_box_height)
+#     plt.gca().set_aspect('equal', adjustable='box')
+    
+#     # Customize x and y ticks (show start, end, and major divisions)
+#     xticks = [0] + rib_centers + [big_box_length]
+#     yticks = [0, big_box_height / 2, big_box_height]
+    
+#     plt.xticks(xticks, rotation=45)  # Rotate x-labels for better readability
+#     plt.yticks(yticks)
+    
+#     # Force 1 decimal place on all ticks
+#     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # X-axis: 1 decimal
+#     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # Y-axis: 1 decimal
+    
+#     # Label axes with units (assuming meters)
+#     ax.set_xlabel("Length (m)", fontsize=12)
+#     ax.set_ylabel("Height (m)", fontsize=12)
+    
+#     # Highlight the last point on x and y axes
+#     ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)  # Last x-point
+#     ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)   # Last y-point
+    
+#     # Add grid for better reference
+#     ax.grid(True, linestyle='--', alpha=0.5)
+    
+#     return fig
+
+def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
+    fig, ax = plt.subplots(figsize=(10, 6))
     
     # Draw the big box (slab)
-    ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue', linewidth=2))
+    ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, 
+                          fill=None, edgecolor='blue', linewidth=2))
     
-    # Draw small boxes (ribs)
-    y_initial =   (Cb*10) +10 + 0.75  # 10 is the additional 20 for height over 2. And 0.75 is the tolerance additional to rib height 1.5/2
+    # Calculate rib positions
+    y_initial = (Cb * 10) + 10 + 0.75  # Base Y position
+    y_center = y_initial + (small_box_height / 2)  # Vertical center of ribs
+    rib_edges = []  # To store left and right edges of ribs
+    
+    # Draw ribs and collect their edges
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
+        x2 = center_x + small_box_width / 2
         y1 = y_initial
-        ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red', linewidth=2))
+        
+        # Draw rib
+        ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height,
+                    fill=None, edgecolor='red', linewidth=2))
+        
+        rib_edges.append((x1, x2))  # Store edges
+    
+    # Create connection points (including slab edges)
+    connection_points = [0]  # Left slab edge
+    for left, right in rib_edges:
+        connection_points.extend([left, right])
+    connection_points.append(big_box_length)  # Right slab edge
+    
+    # Remove duplicates and sort
+    connection_points = sorted(list(set(connection_points)))
+    
+    # Draw center connecting lines
+    for i in range(len(connection_points)-1):
+        x_start = connection_points[i]
+        x_end = connection_points[i+1]
+        ax.plot([x_start, x_end], [y_center, y_center], 
+               color='green', linestyle='-', linewidth=1.5)
     
     # Set axis limits and aspect ratio
-    plt.xlim(0, big_box_length)
-    plt.ylim(0, big_box_height)
-    plt.gca().set_aspect('equal', adjustable='box')
+    ax.set_xlim(0, big_box_length)
+    ax.set_ylim(0, big_box_height)
+    ax.set_aspect('equal', adjustable='box')
     
-    # Customize x and y ticks (show start, end, and major divisions)
+    # Customize ticks
     xticks = [0] + rib_centers + [big_box_length]
-    yticks = [0, big_box_height / 2, big_box_height]
+    yticks = [0, y_initial, y_initial + small_box_height, big_box_height]
     
-    plt.xticks(xticks, rotation=45)  # Rotate x-labels for better readability
-    plt.yticks(yticks)
+    ax.set_xticks(xticks)
+    ax.set_yticks(yticks)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
     
-    # Force 1 decimal place on all ticks
-    ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # X-axis: 1 decimal
-    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # Y-axis: 1 decimal
-    
-    # Label axes with units (assuming meters)
+    # Formatting
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     ax.set_xlabel("Length (m)", fontsize=12)
     ax.set_ylabel("Height (m)", fontsize=12)
     
-    # Highlight the last point on x and y axes
-    ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)  # Last x-point
-    ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)   # Last y-point
+    # Highlight key points
+    ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)
+    ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)
+    ax.scatter(rib_centers, [y_center]*len(rib_centers), 
+              color='purple', marker='x', s=100, zorder=5)
     
-    # Add grid for better reference
+    # Add grid
     ax.grid(True, linestyle='--', alpha=0.5)
     
     return fig
-
 
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation')
@@ -202,16 +318,6 @@ if st.button('Visualize'):
     else:
         fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
         st.pyplot(fig)
-
-# if st.button('Download DXF'):
-#     if not rib_centers:
-#         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
-#     else:
-#         doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
-#         doc.saveas('Insulation.dxf')
-#         st.success('DXF file generated. Click below to download.')
-#         with open('Insulation.dxf', 'rb') as f:
-#             st.download_button('Download DXF', f, file_name='Insulation.dxf')
 
 
 def generate_dxf():
