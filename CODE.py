@@ -117,18 +117,60 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
 
     return doc
 
+
+# def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height):
+#     fig, ax = plt.subplots()
+#     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue'))
+#     y_center = (big_box_height - small_box_height) / 2
+#     for center_x in rib_centers:
+#         x1 = center_x - small_box_width / 2
+#         y1 = y_center
+#         ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red'))
+#     plt.xlim(0, big_box_length)
+#     plt.ylim(0, big_box_height)
+#     plt.gca().set_aspect('equal', adjustable='box')
+#     return fig
+
+# More Refined Labelings 
+
 def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height):
     fig, ax = plt.subplots()
-    ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue'))
+    
+    # Draw the big box (slab)
+    ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue', linewidth=2))
+    
+    # Draw small boxes (ribs)
     y_center = (big_box_height - small_box_height) / 2
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         y1 = y_center
-        ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red'))
+        ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red', linewidth=2))
+    
+    # Set axis limits and aspect ratio
     plt.xlim(0, big_box_length)
     plt.ylim(0, big_box_height)
     plt.gca().set_aspect('equal', adjustable='box')
+    
+    # Customize x and y ticks (show start, end, and major divisions)
+    xticks = [0] + rib_centers + [big_box_length]
+    yticks = [0, big_box_height / 2, big_box_height]
+    
+    plt.xticks(xticks, rotation=45)  # Rotate x-labels for better readability
+    plt.yticks(yticks)
+    
+    # Label axes with units (assuming meters)
+    ax.set_xlabel("Length (m)", fontsize=12)
+    ax.set_ylabel("Height (m)", fontsize=12)
+    
+    # Highlight the last point on x and y axes
+    ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)  # Last x-point
+    ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)   # Last y-point
+    
+    # Add grid for better reference
+    ax.grid(True, linestyle='--', alpha=0.5)
+    
     return fig
+
 
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation')
@@ -136,8 +178,8 @@ st.title('DXF Generator for FIRIKA Insulation')
 # thickness_slab_cm = st.number_input('Thickness of slab (cm)', min_value=10, max_value=50, value=20)
 num_ribs = st.number_input('Number of ribs', min_value=2, max_value=10, value=2)
 h_rib = st.selectbox('Height of Ribs (cm)', [11, 13, 15, 17, 19])
-Cb = st.number_input('Concrete Cover buttom (cm)' , value=2.5)
-Ct = st.number_input('Concrete Cover top (cm)' , value=2.5)
+Cb = st.number_input('Concrete Cover buttom (cm)' , value=2.5, step=0.5)
+Ct = st.number_input('Concrete Cover top (cm)', value=2.5, step=0.5)
 
 thickness_slab_cm = Cb+Ct+h_rib
 Cb = Cb*10
