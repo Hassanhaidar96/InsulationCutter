@@ -106,15 +106,19 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
     # Add big box
     msp.add_lwpolyline([(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)], close=True)
 
+
+    # Calculate rib base position (convert Cb from cm to mm)
+    rib_base_y = Cb * 10  # Cb in cm → mm
+    rib_top_y = rib_base_y + small_box_height
+
     # Add ribs
-    # y_center = (big_box_height - small_box_height) / 2
-    y_center = (small_box_height/ 2 ) + Cb
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         x2 = center_x + small_box_width / 2
-        y1 = y_center
-        y2 = y_center + small_box_height
-        msp.add_lwpolyline([(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)], close=True)
+        msp.add_lwpolyline(
+            [(x1, rib_base_y), (x2, rib_base_y), (x2, rib_top_y), (x1, rib_top_y), (x1, rib_base_y)],
+            close=True
+        )
 
     return doc
 
@@ -134,19 +138,20 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
 
 # More Refined Labelings 
 
-def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
+def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
     fig, ax = plt.subplots()
     
     # Draw the big box (slab)
     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue', linewidth=2))
     
     # Draw small boxes (ribs)
-    # y_center = (big_box_height - small_box_height) / 2
-    y_center = (small_box_height/ 2 ) + Cb
+    rib_base_y = Cb  # No need to convert to mm since we're working in consistent units
+    rib_height = small_box_height
+    
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
-        y1 = y_center
-        ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red', linewidth=2))
+        y1 = rib_base_y
+        ax.add_patch(Rectangle((x1, y1), small_box_width, rib_height, fill=None, edgecolor='red', linewidth=2))
     
     # Set axis limits and aspect ratio
     plt.xlim(0, big_box_length)
@@ -155,7 +160,7 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     
     # Customize x and y ticks (show start, end, and major divisions)
     xticks = [0] + rib_centers + [big_box_length]
-    yticks = [0, big_box_height / 2, big_box_height]
+    yticks = [0, rib_base_y, rib_base_y + rib_height, big_box_height]  # Key points on y-axis
     
     plt.xticks(xticks, rotation=45)  # Rotate x-labels for better readability
     plt.yticks(yticks)
@@ -168,9 +173,11 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     ax.set_xlabel("Length (m)", fontsize=12)
     ax.set_ylabel("Height (m)", fontsize=12)
     
-    # Highlight the last point on x and y axes
+    # Highlight important points
     ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)  # Last x-point
     ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)   # Last y-point
+    ax.scatter([0], [rib_base_y], color='green', marker='o', s=50, zorder=5)      # Rib base
+    ax.scatter([0], [rib_base_y + rib_height], color='green', marker='o', s=50, zorder=5)  # Rib top
     
     # Add grid for better reference
     ax.grid(True, linestyle='--', alpha=0.5)
