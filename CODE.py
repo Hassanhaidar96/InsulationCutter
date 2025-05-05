@@ -131,7 +131,7 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
     # Calculate rib positions
     y_initial = (Cb * 10) + 10 - 0.75  # Base Y position
     y_center = y_initial + (small_box_height / 2)  # Vertical center of ribs
-    rib_edges = []  # Store left and right edges of all ribs
+    rib_edges = []  # Store (left, right) edges of all ribs
     
     # Add ribs and collect their edges
     for center_x in rib_centers:
@@ -145,23 +145,28 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
             [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)],
             close=True
         )
-        
-        rib_edges.append((x1, x2))  # Store left and right edges
+        rib_edges.append((x1, x2))
 
-    # Create list of all connection points (including slab edges)
-    connection_points = [0]  # Start with left slab edge
-    for rib in rib_edges:
-        connection_points.extend(rib)  # Add left and right of each rib
-    connection_points.append(big_box_length)  # Add right slab edge
+    # Sort ribs by their left edge
+    rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
     
-    # Sort points and remove duplicates
-    connection_points = sorted(list(set(connection_points)))
+    # Create connecting line segments (skipping rib areas)
+    current_pos = 0  # Start from left slab edge
+    connection_segments = []
     
-    # Draw center connecting lines (between ribs and to slab edges)
-    for i in range(len(connection_points)-1):
-        x_start = connection_points[i]
-        x_end = connection_points[i+1]
-        msp.add_line((x_start, y_center), (x_end, y_center))
+    for rib_left, rib_right in rib_edges_sorted:
+        if current_pos < rib_left:
+            # Add segment from current position to left of rib
+            connection_segments.append((current_pos, rib_left))
+        current_pos = rib_right  # Move past this rib
+    
+    # Add final segment from last rib to right edge
+    if current_pos < big_box_length:
+        connection_segments.append((current_pos, big_box_length))
+    
+    # Draw only the non-penetrating connecting lines
+    for start, end in connection_segments:
+        msp.add_line((start, y_center), (end, y_center))
     
     return doc
 
@@ -212,39 +217,43 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     
     # Draw the big box (slab)
     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, 
-                          fill=None, edgecolor='blue', linewidth=2))
+                fill=None, edgecolor='blue', linewidth=2))
     
     # Calculate rib positions
     y_initial = (Cb * 10) + 10 + 0.75  # Base Y position
     y_center = y_initial + (small_box_height / 2)  # Vertical center of ribs
-    rib_edges = []  # To store left and right edges of ribs
+    rib_edges = []  # To store (left, right) edges of ribs
     
     # Draw ribs and collect their edges
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         x2 = center_x + small_box_width / 2
-        y1 = y_initial
-        
-        # Draw rib
-        ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height,
+        ax.add_patch(Rectangle((x1, y_initial), small_box_width, small_box_height,
                     fill=None, edgecolor='red', linewidth=2))
-        
-        rib_edges.append((x1, x2))  # Store edges
+        rib_edges.append((x1, x2))
     
-    # Create connection points (including slab edges)
-    connection_points = [0]  # Left slab edge
-    for left, right in rib_edges:
-        connection_points.extend([left, right])
-    connection_points.append(big_box_length)  # Right slab edge
+    # Create connection segments (skipping areas inside ribs)
+    connection_segments = []
     
-    # Remove duplicates and sort
-    connection_points = sorted(list(set(connection_points)))
+    # Start from left edge of slab
+    current_pos = 0
     
-    # Draw center connecting lines
-    for i in range(len(connection_points)-1):
-        x_start = connection_points[i]
-        x_end = connection_points[i+1]
-        ax.plot([x_start, x_end], [y_center, y_center], 
+    # Sort ribs by their left edge
+    rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
+    
+    for rib_left, rib_right in rib_edges_sorted:
+        if current_pos < rib_left:
+            # Add segment from current position to left of rib
+            connection_segments.append((current_pos, rib_left))
+        current_pos = rib_right  # Skip the rib area
+    
+    # Add final segment from last rib to right edge
+    if current_pos < big_box_length:
+        connection_segments.append((current_pos, big_box_length))
+    
+    # Draw connecting lines for each segment
+    for start, end in connection_segments:
+        ax.plot([start, end], [y_center, y_center], 
                color='green', linestyle='-', linewidth=1.5)
     
     # Set axis limits and aspect ratio
@@ -253,7 +262,7 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     ax.set_aspect('equal', adjustable='box')
     
     # Customize ticks
-    xticks = [0] + rib_centers + [big_box_length]
+    xticks = [0] + [x for rib in rib_edges for x in rib] + [big_box_length]
     yticks = [0, y_initial, y_initial + small_box_height, big_box_height]
     
     ax.set_xticks(xticks)
@@ -263,18 +272,17 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     # Formatting
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-    ax.set_xlabel("Length (m)", fontsize=12)
-    ax.set_ylabel("Height (m)", fontsize=12)
+    ax.set_xlabel("Length (mm)", fontsize=12)
+    ax.set_ylabel("Height (mm)", fontsize=12)
     
-    # Highlight key points
+    # Highlight slab corners only
     ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)
     ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)
-    ax.scatter(rib_centers, [y_center]*len(rib_centers), 
-              color='purple', marker='x', s=100, zorder=5)
     
     # Add grid
     ax.grid(True, linestyle='--', alpha=0.5)
     
+    plt.tight_layout()
     return fig
 
 # Streamlit UI
