@@ -108,7 +108,8 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
 
     # Add ribs
     # y_center = (big_box_height - small_box_height) / 2
-    y_center = (small_box_height/ 2 ) + Cb*10
+    # y_center = (small_box_height/ 2 ) + Cb*10
+    y_center =   Cb*10
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         x2 = center_x + small_box_width / 2
@@ -117,22 +118,7 @@ def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, sma
         msp.add_lwpolyline([(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)], close=True)
 
     return doc
-
-
-# def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height):
-#     fig, ax = plt.subplots()
-#     ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, fill=None, edgecolor='blue'))
-#     y_center = (big_box_height - small_box_height) / 2
-#     for center_x in rib_centers:
-#         x1 = center_x - small_box_width / 2
-#         y1 = y_center
-#         ax.add_patch(Rectangle((x1, y1), small_box_width, small_box_height, fill=None, edgecolor='red'))
-#     plt.xlim(0, big_box_length)
-#     plt.ylim(0, big_box_height)
-#     plt.gca().set_aspect('equal', adjustable='box')
-#     return fig
-
-# More Refined Labelings 
+ 
 
 def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb):
     fig, ax = plt.subplots()
@@ -142,7 +128,8 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     
     # Draw small boxes (ribs)
     # y_center = (big_box_height - small_box_height) / 2
-    y_center = (small_box_height/ 2 ) + Cb*10
+    # y_center = (small_box_height/ 2 ) + Cb*10
+    y_center =   Cb*10
     for center_x in rib_centers:
         x1 = center_x - small_box_width / 2
         y1 = y_center
