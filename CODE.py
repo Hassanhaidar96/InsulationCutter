@@ -10,6 +10,7 @@ import ezdxf
 from ezdxf import units
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import FormatStrFormatter
 
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
@@ -157,6 +158,10 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
     
     plt.xticks(xticks, rotation=45)  # Rotate x-labels for better readability
     plt.yticks(yticks)
+    
+    # Force 1 decimal place on all ticks
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # X-axis: 1 decimal
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))  # Y-axis: 1 decimal
     
     # Label axes with units (assuming meters)
     ax.set_xlabel("Length (m)", fontsize=12)
