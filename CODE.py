@@ -234,15 +234,18 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation')
 
-# thickness_slab_cm = st.number_input('Thickness of slab (cm)', min_value=10, max_value=50, value=20)
-num_ribs = st.number_input('Number of ribs', min_value=2, max_value=10, value=2)
+
+element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
+
+if element_length_type == '0.5m':
+    num_ribs = st.number_input('Number of ribs', min_value=2, max_value=5, value=2, step=1)
+else:
+    num_ribs = st.number_input('Number of ribs', min_value=2, max_value=10, value=2, step=1)
+
 h_rib = st.selectbox('Height of Ribs (cm)', [11, 13, 15, 17, 19])
 Cb = st.number_input('Concrete Cover buttom (cm)' , value=2.5, step=0.5)
 Ct = st.number_input('Concrete Cover top (cm)', value=2.5, step=0.5)
 
-
-
-element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
 
 # Select insulation material
 insulation = st.radio('Insulation material', ['EPS/XPS', 'SW'])
