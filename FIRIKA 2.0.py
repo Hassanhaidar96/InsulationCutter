@@ -94,26 +94,27 @@ def get_centers_Length(num_ribs, Length):
     if num_ribs < 1:
         return []
 
-    margin_start = 64.5
-    margin_end = 35.5
-    usable_length = Length - margin_start - margin_end
+    first_center = 64.5
+    end_margin = 35.5
 
     if num_ribs == 1:
-        return [margin_start] if usable_length >= 0 else []
+        return [first_center] if Length >= first_center + end_margin else []
 
-    max_total_span = usable_length
-    max_spacing = max_total_span / (num_ribs - 1)
+    max_last_center = Length - end_margin
 
-    # Find the largest spacing in hundreds that fits
-    best_spacing = (int(max_spacing) // 100) * 100
-    if best_spacing <= 0:
-        return []  # Not enough space
+    # Try the furthest last center from first_center in 100-mm steps
+    max_possible_span = int((max_last_center - first_center) // 100) * 100
+    for total_span in range(max_possible_span, 0, -100):
+        spacing = total_span // (num_ribs - 1)
+        if spacing % 100 != 0:
+            continue  # skip spacings that aren't multiples of 100
 
-    total_rib_span = best_spacing * (num_ribs - 1)
-    offset = margin_start + (usable_length - total_rib_span) / 2
+        centers = [round(first_center + i * spacing, 1) for i in range(num_ribs)]
+        if centers[-1] <= max_last_center:
+            return centers
 
-    centers = [round(offset + i * best_spacing, 1) for i in range(num_ribs)]
-    return centers
+    return []  # No valid spacing found
+
 
 
 
