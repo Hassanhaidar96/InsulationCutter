@@ -186,34 +186,56 @@ def create_dxf(elements):
 
 def visualize(elements):
     fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Start from bottom
     y_offset = 0
     vertical_gap = 50
     
     for element in elements:
         # Draw slab
-        ax.add_patch(Rectangle((0, y_offset), element['big_length'], element['big_height'],
-                     edgecolor='navy', fill=None, linewidth=1.5))
+        ax.add_patch(Rectangle(
+            (0, y_offset), 
+            element['big_length'], 
+            element['big_height'],
+            edgecolor='navy', 
+            fill=None, 
+            linewidth=1.5
+        ))
         
         # Draw ribs
         y_rib = y_offset + element['Cb']*10 + 10 + 0.75
         for center in element['rib_centers']:
             x1 = center - element['small_width']/2
-            ax.add_patch(Rectangle((x1, y_rib), element['small_width'], element['small_height'],
-                         edgecolor='maroon', fill=None, linewidth=1))
+            ax.add_patch(Rectangle(
+                (x1, y_rib), 
+                element['small_width'], 
+                element['small_height'],
+                edgecolor='maroon', 
+                fill=None, 
+                linewidth=1
+            ))
         
         # Draw connections
         y_center = y_rib + element['small_height']/2
         current_x = 0
-        rib_edges = sorted([(c - element['small_width']/2, c + element['small_width']/2) 
-                          for c in element['rib_centers']])
+        rib_edges = sorted([
+            (c - element['small_width']/2, c + element['small_width']/2) 
+            for c in element['rib_centers']
+        ])
         for left, right in rib_edges:
             if current_x < left:
-                ax.plot([current_x, left], [y_center, y_center], 
-                        color='forestgreen', linewidth=1.5)
+                ax.plot(
+                    [current_x, left], [y_center, y_center], 
+                    color='forestgreen', 
+                    linewidth=1.5
+                )
             current_x = right
         if current_x < element['big_length']:
-            ax.plot([current_x, element['big_length']], [y_center, y_center],
-                    color='forestgreen', linewidth=1.5)
+            ax.plot(
+                [current_x, element['big_length']], [y_center, y_center],
+                color='forestgreen', 
+                linewidth=1.5
+            )
         
         y_offset += element['big_height'] + vertical_gap
     
@@ -250,18 +272,41 @@ if st.button("Process Elements"):
                 elements.append(element)
                 st.success(f"Element {i+1}: Successfully parsed")
 
-if elements:
-    if st.button("Show Visualization"):
-        fig = visualize(elements)
-        st.pyplot(fig)
+if st.button("Process Elements"):
+    st.session_state.elements.clear()
+    for i, code in enumerate(codes):
+        if not code.strip():
+            st.warning(f"Element {i+1}: Empty code skipped")
+            continue
+        element = parse_product_code(code)
+        if element and element['valid']:
+            st.session_state.elements.append(element)
+            st.success(f"Element {i+1}: Successfully parsed")
+        elif element and not element['valid']:
+            st.warning(f"Element {i+1}: No valid rib centers found")
 
-    dxf_file = create_dxf(elements)
-    with st.spinner("Generating DXF..."):
-        dxf_file.saveas("output.dxf")
-        with open("output.dxf", "rb") as f:
-            st.download_button(
-                "Download DXF",
-                f.read(),
-                "combined_elements.dxf",
-                "application/dxf"
-            )
+if st.session_state.elements:
+    if st.button("Show Visualization"):
+        fig = visualize(st.session_state.elements)
+        st.pyplot(fig)
+        plt.close(fig)  # Prevents memory leaks
+
+    if st.button("Generate DXF"):
+        from io import BytesIO  # Ensure this import exists
+        try:
+            dxf_file = create_dxf(st.session_state.elements)
+            buffer = BytesIO()  # Now BytesIO is defined
+            dxf_file.saveas(buffer)
+            buffer.seek(0)
+            
+            if len(buffer.getvalue()) == 0:
+                st.error("Empty DXF file - no entities created")
+            else:
+                st.download_button(
+                    "Download DXF",
+                    buffer.getvalue(),
+                    "combined_elements.dxf",
+                    "application/dxf"
+                )
+        except Exception as e:
+            st.error(f"DXF generation failed: {str(e)}")
