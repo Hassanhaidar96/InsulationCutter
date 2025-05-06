@@ -63,6 +63,7 @@ def get_centers_05m(num_ribs):
         return []
     
 def get_centers_compact(num_ribs):
+    
     if num_ribs == 1:
         return [55]
     if num_ribs == 2:
@@ -86,6 +87,7 @@ def get_centers_compact(num_ribs):
     else:
         return []
 
+
 def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     if element_length_type == '1m':
         return get_centers_1m(num_ribs)
@@ -96,66 +98,33 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     else:
         return []
 
-def get_board_dimensions(insulation, insulation_thickness):
-    if insulation == 'EPS/XPS':
-        if insulation_thickness == 80:
-            return (2500, 1000)
-        elif insulation_thickness == 120:
-            return (2500, 1200)
-    elif insulation == 'SW':
-        if insulation_thickness == 80:
-            return (2400, 1200)
-        elif insulation_thickness == 120:
-            return (1200, 600)
-    elif insulation == 'XPS':
-        if insulation_thickness == 80:
-            return (3000, 1000)
-        elif insulation_thickness == 120:
-            return (1200, 600)
-    return (0, 0)  # default
-
-def create_dxf(big_board_length, big_board_height, element_x_offset, element_y_offset, 
-               rib_centers, small_box_width, small_box_height, Cb, element_length_mm):
+ 
+def create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
 
-    # Add big board
+    # Add big box (slab)
     msp.add_lwpolyline(
-        [(0, 0), (big_board_length, 0), (big_board_length, big_board_height), 
-         (0, big_board_height), (0, 0)],
+        [(0, 0), (big_box_length, 0), (big_box_length, big_box_height), (0, big_box_height), (0, 0)],
         close=True
     )
 
-    # Calculate element position (9cm from left, at top in Y)
-    element_x = element_x_offset
-    element_y = big_board_height - (element_y_offset + ((Cb + small_box_height/10 + Ct) * 10))
-    
-    # Add element boundary (for visualization)
-    element_height = (Cb + small_box_height/10 + Ct) * 10
-    msp.add_lwpolyline(
-        [(element_x, element_y), 
-         (element_x + element_length_mm, element_y),
-         (element_x + element_length_mm, element_y + element_height),
-         (element_x, element_y + element_height),
-         (element_x, element_y)],
-        close=True
-    )
-
-    # Calculate rib positions relative to element
-    y_initial = element_y + (Cb * 10) + 10 - 0.75  # Base Y position
+    # Calculate rib positions
+    y_initial = (Cb * 10) + 10 - 0.75  # Base Y position
     y_center = y_initial + (small_box_height / 2)  # Vertical center of ribs
     rib_edges = []  # Store (left, right) edges of all ribs
     
     # Add ribs and collect their edges
     for center_x in rib_centers:
-        x1 = element_x + center_x - small_box_width / 2
-        x2 = element_x + center_x + small_box_width / 2
+        x1 = center_x - small_box_width / 2
+        x2 = center_x + small_box_width / 2
+        y1 = y_initial
+        y2 = y_initial + small_box_height
         
         # Add rib
         msp.add_lwpolyline(
-            [(x1, y_initial), (x2, y_initial), (x2, y_initial + small_box_height), 
-             (x1, y_initial + small_box_height), (x1, y_initial)],
+            [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)],
             close=True
         )
         rib_edges.append((x1, x2))
@@ -164,7 +133,7 @@ def create_dxf(big_board_length, big_board_height, element_x_offset, element_y_o
     rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
     
     # Create connecting line segments (skipping rib areas)
-    current_pos = element_x  # Start from left element edge
+    current_pos = 0  # Start from left slab edge
     connection_segments = []
     
     for rib_left, rib_right in rib_edges_sorted:
@@ -174,8 +143,8 @@ def create_dxf(big_board_length, big_board_height, element_x_offset, element_y_o
         current_pos = rib_right  # Move past this rib
     
     # Add final segment from last rib to right edge
-    if current_pos < element_x + element_length_mm:
-        connection_segments.append((current_pos, element_x + element_length_mm))
+    if current_pos < big_box_length:
+        connection_segments.append((current_pos, big_box_length))
     
     # Draw only the non-penetrating connecting lines
     for start, end in connection_segments:
@@ -183,32 +152,23 @@ def create_dxf(big_board_length, big_board_height, element_x_offset, element_y_o
     
     return doc
 
-def visualize(big_board_length, big_board_height, element_x_offset, element_y_offset, 
-              rib_centers, small_box_width, small_box_height, Cb, element_length_mm):
-    fig, ax = plt.subplots(figsize=(12, 8))
+
+def visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb):
+    fig, ax = plt.subplots(figsize=(10, 6))
     
-    # Draw the big board
-    ax.add_patch(Rectangle((0, 0), big_board_length, big_board_height, 
+    # Draw the big box (slab)
+    ax.add_patch(Rectangle((0, 0), big_box_length, big_box_height, 
                 fill=None, edgecolor='blue', linewidth=2))
     
-    # Calculate element position (9cm from left, at top in Y)
-    element_height = (Cb + small_box_height/10 + Ct) * 10
-    element_x = element_x_offset
-    element_y = big_board_height - (element_y_offset + element_height)
-    
-    # Draw element boundary
-    ax.add_patch(Rectangle((element_x, element_y), element_length_mm, element_height,
-                fill=None, edgecolor='purple', linewidth=2, linestyle='--'))
-    
-    # Calculate rib positions relative to element
-    y_initial = element_y + (Cb * 10) + 10 + 0.75  # Base Y position
+    # Calculate rib positions
+    y_initial = (Cb * 10) + 10 + 0.75  # Base Y position
     y_center = y_initial + (small_box_height / 2)  # Vertical center of ribs
     rib_edges = []  # To store (left, right) edges of ribs
     
     # Draw ribs and collect their edges
     for center_x in rib_centers:
-        x1 = element_x + center_x - small_box_width / 2
-        x2 = element_x + center_x + small_box_width / 2
+        x1 = center_x - small_box_width / 2
+        x2 = center_x + small_box_width / 2
         ax.add_patch(Rectangle((x1, y_initial), small_box_width, small_box_height,
                     fill=None, edgecolor='red', linewidth=2))
         rib_edges.append((x1, x2))
@@ -216,8 +176,8 @@ def visualize(big_board_length, big_board_height, element_x_offset, element_y_of
     # Create connection segments (skipping areas inside ribs)
     connection_segments = []
     
-    # Start from left edge of element
-    current_pos = element_x
+    # Start from left edge of slab
+    current_pos = 0
     
     # Sort ribs by their left edge
     rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
@@ -229,8 +189,8 @@ def visualize(big_board_length, big_board_height, element_x_offset, element_y_of
         current_pos = rib_right  # Skip the rib area
     
     # Add final segment from last rib to right edge
-    if current_pos < element_x + element_length_mm:
-        connection_segments.append((current_pos, element_x + element_length_mm))
+    if current_pos < big_box_length:
+        connection_segments.append((current_pos, big_box_length))
     
     # Draw connecting lines for each segment
     for start, end in connection_segments:
@@ -238,17 +198,22 @@ def visualize(big_board_length, big_board_height, element_x_offset, element_y_of
                color='green', linestyle='-', linewidth=1.5)
     
     # Set axis limits and aspect ratio
-    ax.set_xlim(0, big_board_length)
-    ax.set_ylim(0, big_board_height)
+    ax.set_xlim(0, big_box_length)
+    ax.set_ylim(0, big_box_height)
     ax.set_aspect('equal', adjustable='box')
     
-    # Customize x and y ticks
-    xticks = [0, element_x, element_x + element_length_mm, big_board_length]
-    yticks = [0, big_board_height / 2, big_board_height]
+    # # Customize ticks
+    # xticks = [0] + [x for rib in rib_edges for x in rib] + [big_box_length]
+    # yticks = [0, y_initial, y_initial + small_box_height, big_box_height]
+    
+    # Customize x and y ticks (show start, end, and major divisions)
+    xticks = [0] + rib_centers + [big_box_length]
+    yticks = [0, big_box_height / 2, big_box_height]
     
     ax.set_xticks(xticks)
     ax.set_yticks(yticks)
     plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+    
     
     # Formatting
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -256,9 +221,9 @@ def visualize(big_board_length, big_board_height, element_x_offset, element_y_of
     ax.set_xlabel("Length (mm)", fontsize=12)
     ax.set_ylabel("Height (mm)", fontsize=12)
     
-    # Highlight board corners
-    ax.scatter([big_board_length], [0], color='black', marker='o', s=50, zorder=5)
-    ax.scatter([0], [big_board_height], color='black', marker='o', s=50, zorder=5)
+    # Highlight slab corners only
+    ax.scatter([big_box_length], [0], color='black', marker='o', s=50, zorder=5)
+    ax.scatter([0], [big_box_height], color='black', marker='o', s=50, zorder=5)
     
     # Add grid
     ax.grid(True, linestyle='--', alpha=0.5)
@@ -269,15 +234,7 @@ def visualize(big_board_length, big_board_height, element_x_offset, element_y_of
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation')
 
-# Board configuration
-insulation = st.selectbox('Insulation material', ['EPS/XPS', 'SW', 'XPS'])
-insulation_thickness = st.selectbox('Insulation thickness (mm)', [80, 120])
 
-# Get board dimensions based on insulation type and thickness
-big_board_length, big_board_height = get_board_dimensions(insulation, insulation_thickness)
-st.write(f"Board dimensions: {big_board_length}mm x {big_board_height}mm")
-
-# Element configuration
 element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
 
 if element_length_type == '0.5m':
@@ -288,45 +245,48 @@ else:  # 1m case
     num_ribs = st.number_input('Number of ribs', min_value=2, max_value=10, value=2, step=1)
 
 h_rib = st.selectbox('Height of Ribs (cm)', [11, 13, 15, 17, 19])
-Cb = st.number_input('Concrete Cover bottom (cm)', value=2.5, step=0.5)
+Cb = st.number_input('Concrete Cover buttom (cm)' , value=2.5, step=0.5)
 Ct = st.number_input('Concrete Cover top (cm)', value=2.5, step=0.5)
 
-# Fire resistance options
+
+# Select insulation material
+insulation = st.radio('Insulation material', ['EPS/XPS', 'SW'])
+
+#Fire resistance options
 if insulation == 'SW':
     fire_resistance = st.selectbox('Fire resistance', ['REI120'])  # Only REI120 for SW
 else:
     fire_resistance = st.selectbox('Fire resistance', ['R0', 'REI60', 'REI90'])  
 
+
 # Process inputs
 Cb, Ct = adjust_h_for_fire_resistance(Cb, Ct, fire_resistance)
 
 element_length_mm = get_element_length(element_length_type, num_ribs)
+big_box_length = element_length_mm + 10  # +1 cm
+big_box_height = (Cb+Ct+h_rib) * 10 + 20  # +2 cm
+
 small_box_width = 18 if insulation == 'SW' else 17  # width in mm
 small_box_height = (h_rib * 10) + 1.5  # 0.15 cm to mm
 
 rib_centers = calculate_rib_centers(element_length_type, num_ribs, element_length_mm)
 
-# Position of first element (9cm from left, at top in Y)
-element_x_offset = 90  # 9cm in mm
-element_y_offset = 0   # at top
-
 if st.button('Visualize'):
     if not rib_centers:
         st.warning('Spacing rules not defined for this configuration.')
     else:
-        fig = visualize(big_board_length, big_board_height, element_x_offset, element_y_offset,
-                       rib_centers, small_box_width, small_box_height, Cb, element_length_mm)
+        fig = visualize(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height,Cb)
         st.pyplot(fig)
+
 
 def generate_dxf():
     if not rib_centers:
         st.error('Cannot generate DXF: undefined spacing for the current inputs.')
         return None
     with st.spinner('Generating DXF...'):
-        doc = create_dxf(big_board_length, big_board_height, element_x_offset, element_y_offset,
-                        rib_centers, small_box_width, small_box_height, Cb, element_length_mm)
-        doc.saveas('Insulation_with_board.dxf')
-    with open('Insulation_with_board.dxf', 'rb') as f:
+        doc = create_dxf(big_box_length, big_box_height, rib_centers, small_box_width, small_box_height, Cb)
+        doc.saveas('Insulation.dxf')
+    with open('Insulation.dxf', 'rb') as f:
         return f.read()
 
 # Single interactive download button
@@ -335,6 +295,6 @@ if dxf_data:
     st.download_button(
         label='Generate and Download DXF',
         data=dxf_data,
-        file_name='Insulation_with_board.dxf',
+        file_name='Insulation.dxf',
         mime='application/dxf'
     )
