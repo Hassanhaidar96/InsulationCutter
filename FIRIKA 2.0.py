@@ -290,14 +290,13 @@ if st.session_state.elements:
         plt.close(fig)  # Prevents memory leaks
 
     if st.button("Generate DXF"):
-    
+        from io import BytesIO  # Ensure this import exists
         try:
             dxf_file = create_dxf(st.session_state.elements)
-            buffer = BytesIO()
+            buffer = BytesIO()  # Now BytesIO is defined
             dxf_file.saveas(buffer)
             buffer.seek(0)
             
-            # Validate content
             if len(buffer.getvalue()) == 0:
                 st.error("Empty DXF file - no entities created")
             else:
