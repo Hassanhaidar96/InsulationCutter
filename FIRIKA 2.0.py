@@ -11,6 +11,7 @@ from ezdxf import units
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
+from io import BytesIO
 
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
@@ -148,49 +149,47 @@ def create_dxf(elements):
     doc.units = units.MM
     msp = doc.modelspace()
     
-    # Start from top and work down
     total_height = sum(e['big_height'] for e in elements) + (len(elements)-1)*50
     y_offset = total_height
     
-    for element in reversed(elements):  # Reverse to draw first element at bottom
+    for element in reversed(elements):
         y_offset -= element['big_height']
         
-        # Add slab (ensure all 4 sides are drawn)
-        msp.add_lwpolyline(
-            [(0, y_offset), 
-             (element['big_length'], y_offset),
-             (element['big_length'], y_offset + element['big_height']),
-             (0, y_offset + element['big_height']),
-             (0, y_offset)],  # Close the loop
-            close=True
-        )
+        # Corrected slab polyline (4 points + close=True)
+        slab_points = [
+            (0, y_offset),
+            (element['big_length'], y_offset),
+            (element['big_length'], y_offset + element['big_height']),
+            (0, y_offset + element['big_height'])
+        ]
+        msp.add_lwpolyline(slab_points, close=True)
         
-        # Add ribs
+        # Add ribs with corrected polyline
         y_rib_base = y_offset + element['Cb']*10 + 10 - 0.75
-        rib_edges = []
         for center in element['rib_centers']:
             x1 = center - element['small_width']/2
             x2 = center + element['small_width']/2
-            msp.add_lwpolyline(
-                [(x1, y_rib_base), (x2, y_rib_base),
-                 (x2, y_rib_base + element['small_height']),
-                 (x1, y_rib_base + element['small_height']),
-                 (x1, y_rib_base)],
-                close=True
-            )
-            rib_edges.append((x1, x2))
+            rib_points = [
+                (x1, y_rib_base),
+                (x2, y_rib_base),
+                (x2, y_rib_base + element['small_height']),
+                (x1, y_rib_base + element['small_height'])
+            ]
+            msp.add_lwpolyline(rib_points, close=True)
         
-        # Add connections
+        # Connections remain the same
         y_center = y_rib_base + element['small_height']/2
         current_x = 0
-        for left, right in sorted(rib_edges):
+        rib_edges = sorted([(c - element['small_width']/2, c + element['small_width']/2) 
+                          for c in element['rib_centers']])
+        for left, right in rib_edges:
             if current_x < left:
                 msp.add_line((current_x, y_center), (left, y_center))
             current_x = right
         if current_x < element['big_length']:
             msp.add_line((current_x, y_center), (element['big_length'], y_center))
         
-        y_offset -= 50  # Add gap between elements
+        y_offset -= 50
     
     return doc
 
@@ -291,15 +290,22 @@ if st.session_state.elements:
         plt.close(fig)  # Prevents memory leaks
 
     if st.button("Generate DXF"):
-        dxf_file = create_dxf(st.session_state.elements)
-        # Use in-memory buffer to avoid file handling
-        from io import BytesIO
-        buffer = BytesIO()
-        dxf_file.saveas(buffer)
-        buffer.seek(0)
-        st.download_button(
-            "Download DXF",
-            buffer.getvalue(),
-            "combined_elements.dxf",
-            "application/dxf"
-        )
+    
+        try:
+            dxf_file = create_dxf(st.session_state.elements)
+            buffer = BytesIO()
+            dxf_file.saveas(buffer)
+            buffer.seek(0)
+            
+            # Validate content
+            if len(buffer.getvalue()) == 0:
+                st.error("Empty DXF file - no entities created")
+            else:
+                st.download_button(
+                    "Download DXF",
+                    buffer.getvalue(),
+                    "combined_elements.dxf",
+                    "application/dxf"
+                )
+        except Exception as e:
+            st.error(f"DXF generation failed: {str(e)}")
