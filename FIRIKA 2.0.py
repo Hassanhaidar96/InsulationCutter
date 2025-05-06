@@ -20,13 +20,15 @@ def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     else:
         return Cb, Ct
 
-def get_element_length(element_length_type, num_ribs):
+def get_element_length(element_length_type, num_ribs,Length):
     if element_length_type == '1m':
         return 1000  # in mm
     elif element_length_type == '0.5m':
         return 500  # in mm
     elif element_length_type == 'compact':
         return num_ribs * 100  # 10 cm per rib, converted to mm
+    elif element_length_type == 'Lenght':
+        return Length  # 10 cm per rib, converted to mm    
 
 def get_centers_1m(num_ribs):
     if num_ribs == 2:
@@ -87,6 +89,29 @@ def get_centers_compact(num_ribs):
     else:
         return []
 
+
+# def get_centers_Lenght(num_ribs):
+
+#     if num_ribs == 2:
+#         return [64.5, 164.5]
+#     elif num_ribs == 3:
+#         return [64.5, 164.5, 264.5]
+#     elif num_ribs == 4:
+#         return [64.5, 164.5, 264.5, 364.5]
+#     elif num_ribs == 5:
+#         return [64.5, 164.5, 264.5, 364.5, 464.5]
+#     elif num_ribs == 6:
+#         return [64.5, 164.5, 264.5, 364.5, 464.5 , 564.5]
+#     elif num_ribs == 7:
+#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5]
+#     elif num_ribs == 8:
+#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5]
+#     elif num_ribs == 9:
+#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5, 864.5]
+#     elif num_ribs == 10:
+#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5, 864.5, 964.5]
+#     else:
+#         return []
 
 def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     if element_length_type == '1m':
@@ -234,8 +259,11 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation')
 
+Lenght = ''
+element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact','Lenght'])
+if element_length_type == 'Lenght':
+    Length = st.number_input('Lenght [mm]' ,min_value=300, max_value=900, value=300, step=100)
 
-element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact'])
 
 if element_length_type == '0.5m':
     num_ribs = st.selectbox('Number of ribs', [2, 3, 4, 5])
@@ -262,7 +290,8 @@ else:
 # Process inputs
 Cb, Ct = adjust_h_for_fire_resistance(Cb, Ct, fire_resistance)
 
-element_length_mm = get_element_length(element_length_type, num_ribs)
+element_length_mm = get_element_length(element_length_type, num_ribs,Length)
+
 big_box_length = element_length_mm + 10  # +1 cm
 big_box_height = (Cb+Ct+h_rib) * 10 + 20  # +2 cm
 
