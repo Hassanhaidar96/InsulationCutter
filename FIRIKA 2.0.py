@@ -90,28 +90,34 @@ def get_centers_compact(num_ribs):
         return []
 
 
-# def get_centers_Lenght(num_ribs):
+def get_centers_Length(num_ribs, Length):
+    if num_ribs < 1:
+        return []
 
-#     if num_ribs == 2:
-#         return [64.5, 164.5]
-#     elif num_ribs == 3:
-#         return [64.5, 164.5, 264.5]
-#     elif num_ribs == 4:
-#         return [64.5, 164.5, 264.5, 364.5]
-#     elif num_ribs == 5:
-#         return [64.5, 164.5, 264.5, 364.5, 464.5]
-#     elif num_ribs == 6:
-#         return [64.5, 164.5, 264.5, 364.5, 464.5 , 564.5]
-#     elif num_ribs == 7:
-#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5]
-#     elif num_ribs == 8:
-#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5]
-#     elif num_ribs == 9:
-#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5, 864.5]
-#     elif num_ribs == 10:
-#         return [64.5 , 164.5 , 264.5 , 364.5 , 464.5 , 564.5 , 664.5, 764.5, 864.5, 964.5]
-#     else:
-#         return []
+    first_center = 64.5  # Fixed starting position
+
+    # Handle single rib case
+    if num_ribs == 1:
+        min_length = first_center + 35  # 64.5 + 35 = 99.5mm
+        return [first_center] if Length >= min_length else []
+
+    last_center_max = Length - 35.5  # Maximum allowed last rib center position
+
+    # Try spacings that are multiples of 100
+    best_centers = []
+    for spacing in range(100, 10000, 100):  
+        total_span = spacing * (num_ribs - 1)
+        last_center = first_center + total_span
+
+        if last_center <= last_center_max:
+            # This spacing is valid
+            centers = [first_center + i * spacing for i in range(num_ribs)]
+            best_centers = centers  # Update the best so far
+        else:
+            break  # No need to try larger spacings
+
+    return best_centers
+
 
 def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     if element_length_type == '1m':
