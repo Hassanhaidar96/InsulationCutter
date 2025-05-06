@@ -127,7 +127,7 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     if element_length_type == 'compact':
         return get_centers_compact(num_ribs)
     if element_length_type == 'Lenght':
-        return get_centers_compact(num_ribs) ##
+        return get_centers_Length(num_ribs,element_length_mm) ##
     else:
         return []
 
