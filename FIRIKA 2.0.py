@@ -259,8 +259,11 @@ def visualize(elements):
 # Streamlit UI
 st.title("FIRIKA Insulation Generator")
 
+# Initialize session state for elements if not present
+if 'elements' not in st.session_state:
+    st.session_state.elements = []
+
 num_elements = st.number_input("Number of elements", 1, 10, 1)
-elements = []
 codes = []
 
 for i in range(num_elements):
@@ -269,31 +272,34 @@ for i in range(num_elements):
     codes.append(code)
 
 if st.button("Process Elements"):
-    elements.clear()
+    st.session_state.elements.clear()
     for i, code in enumerate(codes):
         if not code.strip():
             st.warning(f"Element {i+1}: Empty code skipped")
             continue
         element = parse_product_code(code)
         if element and element['valid']:
-            elements.append(element)
+            st.session_state.elements.append(element)
             st.success(f"Element {i+1}: Successfully parsed")
         elif element and not element['valid']:
             st.warning(f"Element {i+1}: No valid rib centers found")
 
-if elements:
+if st.session_state.elements:
     if st.button("Show Visualization"):
-        fig = visualize(elements)
+        fig = visualize(st.session_state.elements)
         st.pyplot(fig)
+        plt.close(fig)  # Prevents memory leaks
 
     if st.button("Generate DXF"):
-        dxf_file = create_dxf(elements)
-        with st.spinner("Generating DXF..."):
-            dxf_file.saveas("output.dxf")
-            with open("output.dxf", "rb") as f:
-                st.download_button(
-                    "Download DXF",
-                    f.read(),
-                    "combined_elements.dxf",
-                    "application/dxf"
-                )
+        dxf_file = create_dxf(st.session_state.elements)
+        # Use in-memory buffer to avoid file handling
+        from io import BytesIO
+        buffer = BytesIO()
+        dxf_file.saveas(buffer)
+        buffer.seek(0)
+        st.download_button(
+            "Download DXF",
+            buffer.getvalue(),
+            "combined_elements.dxf",
+            "application/dxf"
+        )
