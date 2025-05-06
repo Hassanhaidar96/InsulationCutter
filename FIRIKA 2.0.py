@@ -261,7 +261,7 @@ def visualize(big_box_length, big_box_height, rib_centers, small_box_width, smal
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation')
 
-Lenght = []
+Length = ""
 element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact','Lenght'])
 if element_length_type == 'Lenght':
     Length = st.number_input('Lenght [mm]' ,min_value=300, max_value=900, value=300, step=100)
