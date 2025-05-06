@@ -10,7 +10,6 @@ import ezdxf
 from ezdxf import units
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from matplotlib.ticker import FormatStrFormatter
 
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
@@ -62,17 +61,19 @@ def get_centers_compact(num_ribs):
     return centers.get(num_ribs, [])
 
 def get_centers_Length(num_ribs, Length):
-    if num_ribs < 1: return []
+    if num_ribs < 1:
+        return []
     first_center = 64.5
     if num_ribs == 1:
         return [first_center] if Length >= first_center + 35 else []
     last_center_max = Length - 35.5
     best_centers = []
-    for spacing in range(100, 10000, 100):  
+    for spacing in range(100, 10000, 100): 
         last_center = first_center + spacing * (num_ribs - 1)
         if last_center <= last_center_max:
-            best_centers = [first_center + i*spacing for i in range(num_ribs)]
-        else: break
+            best_centers = [first_center + i * spacing for i in range(num_ribs)]
+        else:
+            break
     return best_centers
 
 def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
@@ -86,46 +87,41 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
 def parse_product_code(code):
     try:
         parts = code.split('/')
-        if len(parts) < 6: raise ValueError("Invalid code format")
-        
-        # Rib info
+        if len(parts) < 6:
+            raise ValueError("Invalid code format")
+
         rib_part = parts[1].split('-')
-        if len(rib_part) != 2: raise ValueError("Invalid rib format")
         num_ribs = int(rib_part[0])
         h_rib = int(rib_part[1])
-        
-        # Covers
+
         covers = parts[2].split('.')
-        if len(covers) < 3: raise ValueError("Invalid cover format")
         Ct_mm, Cb_mm = int(covers[0]), int(covers[1])
-        
-        # Element length
+
         length_code = int(parts[3])
-        if length_code == 100: el_type = '1m'
-        elif length_code == 50: el_type = '0.5m'
-        elif length_code == num_ribs * 10: el_type = 'compact'
-        else: 
+        if length_code == 100:
+            el_type = '1m'
+        elif length_code == 50:
+            el_type = '0.5m'
+        elif length_code == num_ribs * 10:
+            el_type = 'compact'
+        else:
             el_type = 'Lenght'
             custom_length = length_code * 10
-        
-        # Insulation and fire
+
         insulation = 'EPS/XPS' if parts[4] in ['EPS', 'XPS'] else 'SW'
         fire = parts[5]
-        
-        # Convert covers to cm
-        Ct, Cb = Ct_mm/10, Cb_mm/10
+
+        Ct, Cb = Ct_mm / 10, Cb_mm / 10
         Cb, Ct = adjust_h_for_fire_resistance(Cb, Ct, fire)
-        
-        # Calculate dimensions
+
         el_length = get_element_length(el_type, num_ribs, custom_length if el_type == 'Lenght' else 0)
         big_length = el_length + 10
         big_height = (Cb + Ct + h_rib) * 10 + 20
         small_width = 18 if insulation == 'SW' else 17
         small_height = h_rib * 10 + 1.5
-        
-        # Get rib centers
+
         rib_centers = calculate_rib_centers(el_type, num_ribs, el_length)
-        
+
         return {
             'big_length': big_length,
             'big_height': big_height,
@@ -134,6 +130,7 @@ def parse_product_code(code):
             'small_height': small_height,
             'Cb': Cb
         }
+
     except Exception as e:
         st.error(f"Error parsing code '{code}': {str(e)}")
         return None
@@ -144,122 +141,70 @@ def create_dxf(elements):
     msp = doc.modelspace()
     y_offset = 0
     vertical_gap = 50
-    
-    for element in elements:
-        # Add slab
-        msp.add_lwpolyline(
-            [(0, y_offset), (element['big_length'], y_offset),
-             (element['big_length'], y_offset + element['big_height']),
-             (0, y_offset + element['big_height']), (0, y_offset)],
-            close=True
-        )
-        
-        # Add ribs
-        y_rib_base = y_offset + element['Cb']*10 + 10 - 0.75
-        rib_edges = []
+
+    for element in reversed(elements):  # Reverse to make first at top
+        # Main box
+        msp.add_lwpolyline([
+            (0, y_offset), (element['big_length'], y_offset),
+            (element['big_length'], y_offset + element['big_height']),
+            (0, y_offset + element['big_height']), (0, y_offset)
+        ], close=True)
+
+        # Ribs
+        y_rib_base = y_offset + element['Cb'] * 10 + 10 - 0.75
         for center in element['rib_centers']:
-            x1 = center - element['small_width']/2
-            x2 = center + element['small_width']/2
-            msp.add_lwpolyline(
-                [(x1, y_rib_base), (x2, y_rib_base),
-                 (x2, y_rib_base + element['small_height']),
-                 (x1, y_rib_base + element['small_height']), (x1, y_rib_base)],
-                close=True
-            )
-            rib_edges.append((x1, x2))
-        
-        # Add connections
-        y_center = y_rib_base + element['small_height']/2
-        current_x = 0
-        for left, right in sorted(rib_edges):
-            if current_x < left:
-                msp.add_line((current_x, y_center), (left, y_center))
-            current_x = right
-        if current_x < element['big_length']:
-            msp.add_line((current_x, y_center), (element['big_length'], y_center))
-        
+            x1 = center - element['small_width'] / 2
+            x2 = center + element['small_width'] / 2
+            msp.add_lwpolyline([
+                (x1, y_rib_base), (x2, y_rib_base),
+                (x2, y_rib_base + element['small_height']),
+                (x1, y_rib_base + element['small_height']), (x1, y_rib_base)
+            ], close=True)
+
         y_offset += element['big_height'] + vertical_gap
-    
+
     return doc
 
-def visualize(elements):
-    fig, ax = plt.subplots(figsize=(12, 8))
+def visualize_elements(elements):
+    fig, ax = plt.subplots()
     y_offset = 0
-    vertical_gap = 50
-    
-    for element in elements:
-        # Draw slab
+    vertical_gap = 20
+
+    for element in reversed(elements):  # reverse for visual matching
         ax.add_patch(Rectangle((0, y_offset), element['big_length'], element['big_height'],
-                     edgecolor='navy', fill=None, linewidth=1.5))
-        
-        # Draw ribs
-        y_rib = y_offset + element['Cb']*10 + 10 + 0.75
+                               edgecolor='black', facecolor='none', linewidth=1.5))
+
+        y_rib_base = y_offset + element['Cb'] * 10 + 10 - 0.75
         for center in element['rib_centers']:
-            x1 = center - element['small_width']/2
-            ax.add_patch(Rectangle((x1, y_rib), element['small_width'], element['small_height'],
-                         edgecolor='maroon', fill=None, linewidth=1))
-        
-        # Draw connections
-        y_center = y_rib + element['small_height']/2
-        current_x = 0
-        rib_edges = sorted([(c - element['small_width']/2, c + element['small_width']/2) 
-                          for c in element['rib_centers']])
-        for left, right in rib_edges:
-            if current_x < left:
-                ax.plot([current_x, left], [y_center, y_center], 
-                        color='forestgreen', linewidth=1.5)
-            current_x = right
-        if current_x < element['big_length']:
-            ax.plot([current_x, element['big_length']], [y_center, y_center],
-                    color='forestgreen', linewidth=1.5)
-        
+            x1 = center - element['small_width'] / 2
+            ax.add_patch(Rectangle((x1, y_rib_base), element['small_width'], element['small_height'],
+                                   edgecolor='blue', facecolor='lightblue', linewidth=1.2))
+
         y_offset += element['big_height'] + vertical_gap
-    
-    ax.set_xlim(0, max(e['big_length'] for e in elements))
-    ax.set_ylim(0, y_offset - vertical_gap)
+
     ax.set_aspect('equal')
-    ax.grid(True, linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    return fig
+    ax.set_title("Visualized Elements")
+    st.pyplot(fig)
 
-# Streamlit UI
-st.title("FIRIKA Multi-Element Generator")
+# Streamlit interface
+st.title("Element Visualizer & DXF Exporter")
 
-num_elements = st.number_input("Number of elements", 1, 10, 1)
-elements = []
-codes = []
+codes_input = st.text_area("Enter product codes (one per line):")
 
-for i in range(num_elements):
-    code = st.text_input(f"Element {i+1} code", key=f"code_{i}",
-                        placeholder="C/02-11/65.35.08/100/EPS/R0")
-    codes.append(code)
+if st.button("Visualize"):
+    codes = codes_input.strip().splitlines()
+    parsed_elements = [parse_product_code(code.strip()) for code in codes if code.strip()]
+    parsed_elements = [el for el in parsed_elements if el]
 
-if st.button("Process Elements"):
-    elements.clear()
-    for i, code in enumerate(codes):
-        if not code.strip():
-            st.warning(f"Element {i+1}: Empty code skipped")
-            continue
-        element = parse_product_code(code)
-        if element:
-            if not element['rib_centers']:
-                st.warning(f"Element {i+1}: No valid rib centers found")
-            else:
-                elements.append(element)
-                st.success(f"Element {i+1}: Successfully parsed")
+    if parsed_elements:
+        visualize_elements(parsed_elements)
 
-if elements:
-    if st.button("Show Visualization"):
-        fig = visualize(elements)
-        st.pyplot(fig)
+if st.button("Download DXF"):
+    codes = codes_input.strip().splitlines()
+    parsed_elements = [parse_product_code(code.strip()) for code in codes if code.strip()]
+    parsed_elements = [el for el in parsed_elements if el]
 
-    dxf_file = create_dxf(elements)
-    with st.spinner("Generating DXF..."):
-        dxf_file.saveas("output.dxf")
-        with open("output.dxf", "rb") as f:
-            st.download_button(
-                "Download DXF",
-                f.read(),
-                "combined_elements.dxf",
-                "application/dxf"
-            )
+    if parsed_elements:
+        doc = create_dxf(parsed_elements)
+        dxf_bytes = doc.write_to_bytes()
+        st.download_button("Download DXF File", data=dxf_bytes, file_name="elements.dxf")
