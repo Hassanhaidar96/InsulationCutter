@@ -11,7 +11,6 @@ from ezdxf import units
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
-from io import BytesIO
 
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
@@ -33,10 +32,8 @@ def get_element_length(element_length_type, num_ribs, Length):
 
 def get_centers_1m(num_ribs):
     centers = {
-        2: [114.5, 914.5], 
-        3: [114.5, 514.5, 914.5],
-        4: [114.5, 414.5, 614.5, 914.5], 
-        5: [114.5, 314.5, 514.5, 714.5, 914.5],
+        2: [114.5, 914.5], 3: [114.5, 514.5, 914.5],
+        4: [114.5, 414.5, 614.5, 914.5], 5: [114.5, 314.5, 514.5, 714.5, 914.5],
         6: [114.5, 314.5, 414.5, 614.5, 714.5, 914.5],
         7: [114.5, 214.5, 414.5, 514.5, 614.5, 814.5, 914.5],
         8: [114.5, 214.5, 314.5, 414.5, 614.5, 714.5, 814.5, 914.5],
@@ -47,17 +44,17 @@ def get_centers_1m(num_ribs):
 
 def get_centers_05m(num_ribs):
     centers = {
-        2: [114.5, 414.5], 3: [114.5, 214.5, 414.5],
-        4: [114.5, 214.5, 314.5, 414.5], 5: [64.5, 164.5, 264.5, 364.5, 464.5]
+        2: [114.5, 414.5],
+        3: [114.5, 214.5, 414.5],
+        4: [114.5, 214.5, 314.5, 414.5],
+        5: [64.5, 164.5, 264.5, 364.5, 464.5]
     }
     return centers.get(num_ribs, [])
 
 def get_centers_compact(num_ribs):
     centers = {
-        1: [55], 2: [64.5, 164.5], 
-        3: [64.5, 164.5, 264.5],
-        4: [64.5, 164.5, 264.5, 364.5], 
-        5: [64.5, 164.5, 264.5, 364.5, 464.5],
+        1: [55], 2: [64.5, 164.5], 3: [64.5, 164.5, 264.5],
+        4: [64.5, 164.5, 264.5, 364.5], 5: [64.5, 164.5, 264.5, 364.5, 464.5],
         6: [64.5, 164.5, 264.5, 364.5, 464.5, 564.5],
         7: [64.5, 164.5, 264.5, 364.5, 464.5, 564.5, 664.5],
         8: [64.5, 164.5, 264.5, 364.5, 464.5, 564.5, 664.5, 764.5],
@@ -137,114 +134,86 @@ def parse_product_code(code):
             'rib_centers': rib_centers,
             'small_width': small_width,
             'small_height': small_height,
-            'Cb': Cb,
-            'valid': bool(rib_centers)
+            'Cb': Cb
         }
     except Exception as e:
         st.error(f"Error parsing code '{code}': {str(e)}")
-        return {'valid': False}
+        return None
 
 def create_dxf(elements):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
+    y_offset = 0
+    vertical_gap = 50
     
-    total_height = sum(e['big_height'] for e in elements) + (len(elements)-1)*50
-    y_offset = total_height
-    
-    for element in reversed(elements):
-        y_offset -= element['big_height']
+    for element in elements:
+        # Add slab
+        msp.add_lwpolyline(
+            [(0, y_offset), (element['big_length'], y_offset),
+             (element['big_length'], y_offset + element['big_height']),
+             (0, y_offset + element['big_height']), (0, y_offset)],
+            close=True
+        )
         
-        # Corrected slab polyline (4 points + close=True)
-        slab_points = [
-            (0, y_offset),
-            (element['big_length'], y_offset),
-            (element['big_length'], y_offset + element['big_height']),
-            (0, y_offset + element['big_height'])
-        ]
-        msp.add_lwpolyline(slab_points, close=True)
-        
-        # Add ribs with corrected polyline
+        # Add ribs
         y_rib_base = y_offset + element['Cb']*10 + 10 - 0.75
+        rib_edges = []
         for center in element['rib_centers']:
             x1 = center - element['small_width']/2
             x2 = center + element['small_width']/2
-            rib_points = [
-                (x1, y_rib_base),
-                (x2, y_rib_base),
-                (x2, y_rib_base + element['small_height']),
-                (x1, y_rib_base + element['small_height'])
-            ]
-            msp.add_lwpolyline(rib_points, close=True)
+            msp.add_lwpolyline(
+                [(x1, y_rib_base), (x2, y_rib_base),
+                 (x2, y_rib_base + element['small_height']),
+                 (x1, y_rib_base + element['small_height']), (x1, y_rib_base)],
+                close=True
+            )
+            rib_edges.append((x1, x2))
         
-        # Connections remain the same
+        # Add connections
         y_center = y_rib_base + element['small_height']/2
         current_x = 0
-        rib_edges = sorted([(c - element['small_width']/2, c + element['small_width']/2) 
-                          for c in element['rib_centers']])
-        for left, right in rib_edges:
+        for left, right in sorted(rib_edges):
             if current_x < left:
                 msp.add_line((current_x, y_center), (left, y_center))
             current_x = right
         if current_x < element['big_length']:
             msp.add_line((current_x, y_center), (element['big_length'], y_center))
         
-        y_offset -= 50
+        y_offset += element['big_height'] + vertical_gap
     
     return doc
 
 def visualize(elements):
     fig, ax = plt.subplots(figsize=(12, 8))
-    
-    # Start from bottom
     y_offset = 0
     vertical_gap = 50
     
     for element in elements:
         # Draw slab
-        ax.add_patch(Rectangle(
-            (0, y_offset), 
-            element['big_length'], 
-            element['big_height'],
-            edgecolor='navy', 
-            fill=None, 
-            linewidth=1.5
-        ))
+        ax.add_patch(Rectangle((0, y_offset), element['big_length'], element['big_height'],
+                     edgecolor='navy', fill=None, linewidth=1.5))
         
         # Draw ribs
         y_rib = y_offset + element['Cb']*10 + 10 + 0.75
         for center in element['rib_centers']:
             x1 = center - element['small_width']/2
-            ax.add_patch(Rectangle(
-                (x1, y_rib), 
-                element['small_width'], 
-                element['small_height'],
-                edgecolor='maroon', 
-                fill=None, 
-                linewidth=1
-            ))
+            ax.add_patch(Rectangle((x1, y_rib), element['small_width'], element['small_height'],
+                         edgecolor='maroon', fill=None, linewidth=1))
         
         # Draw connections
         y_center = y_rib + element['small_height']/2
         current_x = 0
-        rib_edges = sorted([
-            (c - element['small_width']/2, c + element['small_width']/2) 
-            for c in element['rib_centers']
-        ])
+        rib_edges = sorted([(c - element['small_width']/2, c + element['small_width']/2) 
+                          for c in element['rib_centers']])
         for left, right in rib_edges:
             if current_x < left:
-                ax.plot(
-                    [current_x, left], [y_center, y_center], 
-                    color='forestgreen', 
-                    linewidth=1.5
-                )
+                ax.plot([current_x, left], [y_center, y_center], 
+                        color='forestgreen', linewidth=1.5)
             current_x = right
         if current_x < element['big_length']:
-            ax.plot(
-                [current_x, element['big_length']], [y_center, y_center],
-                color='forestgreen', 
-                linewidth=1.5
-            )
+            ax.plot([current_x, element['big_length']], [y_center, y_center],
+                    color='forestgreen', linewidth=1.5)
         
         y_offset += element['big_height'] + vertical_gap
     
@@ -256,13 +225,10 @@ def visualize(elements):
     return fig
 
 # Streamlit UI
-st.title("FIRIKA Insulation Generator")
-
-# Initialize session state for elements if not present
-if 'elements' not in st.session_state:
-    st.session_state.elements = []
+st.title("FIRIKA Multi-Element Generator")
 
 num_elements = st.number_input("Number of elements", 1, 10, 1)
+elements = []
 codes = []
 
 for i in range(num_elements):
@@ -271,40 +237,31 @@ for i in range(num_elements):
     codes.append(code)
 
 if st.button("Process Elements"):
-    st.session_state.elements.clear()
+    elements.clear()
     for i, code in enumerate(codes):
         if not code.strip():
             st.warning(f"Element {i+1}: Empty code skipped")
             continue
         element = parse_product_code(code)
-        if element and element['valid']:
-            st.session_state.elements.append(element)
-            st.success(f"Element {i+1}: Successfully parsed")
-        elif element and not element['valid']:
-            st.warning(f"Element {i+1}: No valid rib centers found")
-
-if st.session_state.elements:
-    if st.button("Show Visualization"):
-        fig = visualize(st.session_state.elements)
-        st.pyplot(fig)
-        plt.close(fig)  # Prevents memory leaks
-
-    if st.button("Generate DXF"):
-        from io import BytesIO  # Ensure this import exists
-        try:
-            dxf_file = create_dxf(st.session_state.elements)
-            buffer = BytesIO()  # Now BytesIO is defined
-            dxf_file.saveas(buffer)
-            buffer.seek(0)
-            
-            if len(buffer.getvalue()) == 0:
-                st.error("Empty DXF file - no entities created")
+        if element:
+            if not element['rib_centers']:
+                st.warning(f"Element {i+1}: No valid rib centers found")
             else:
-                st.download_button(
-                    "Download DXF",
-                    buffer.getvalue(),
-                    "combined_elements.dxf",
-                    "application/dxf"
-                )
-        except Exception as e:
-            st.error(f"DXF generation failed: {str(e)}")
+                elements.append(element)
+                st.success(f"Element {i+1}: Successfully parsed")
+
+if elements:
+    if st.button("Show Visualization"):
+        fig = visualize(elements)
+        st.pyplot(fig)
+
+    dxf_file = create_dxf(elements)
+    with st.spinner("Generating DXF..."):
+        dxf_file.saveas("output.dxf")
+        with open("output.dxf", "rb") as f:
+            st.download_button(
+                "Download DXF",
+                f.read(),
+                "combined_elements.dxf",
+                "application/dxf"
+            )
