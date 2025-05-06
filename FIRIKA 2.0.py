@@ -270,7 +270,7 @@ st.title('DXF Generator for FIRIKA Insulation')
 Length = ""
 element_length_type = st.selectbox('Length of element', ['1m', '0.5m', 'compact','Lenght'])
 if element_length_type == 'Lenght':
-    Length = st.number_input('Lenght [mm]' ,min_value=300, max_value=900, value=300, step=100)
+    Length = st.number_input('Lenght [mm]' ,min_value=200, max_value=999, value=300)
 
 
 if element_length_type == '0.5m':
