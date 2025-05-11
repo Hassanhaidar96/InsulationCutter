@@ -258,19 +258,19 @@ for i in range(num_elements):
                         placeholder="C/02-11/65.35.08/100/EPS/R0")
     codes.append(code)
 
-if st.button("Process Elements"):
-    elements.clear()
-    for i, code in enumerate(codes):
-        if not code.strip():
-            st.warning(f"Element {i+1}: Empty code skipped")
-            continue
-        element = parse_product_code(code)
-        if element:
-            if not element['rib_centers']:
-                st.warning(f"Element {i+1}: No valid rib centers found")
-            else:
-                elements.append(element)
-                st.success(f"Element {i+1}: Successfully parsed")
+# if st.button("Process Elements"):
+#     elements.clear()
+#     for i, code in enumerate(codes):
+#         if not code.strip():
+#             st.warning(f"Element {i+1}: Empty code skipped")
+#             continue
+#         element = parse_product_code(code)
+#         if element:
+#             if not element['rib_centers']:
+#                 st.warning(f"Element {i+1}: No valid rib centers found")
+#             else:
+#                 elements.append(element)
+#                 st.success(f"Element {i+1}: Successfully parsed")
 
 if st.button("Process Elements"):
     st.session_state.elements.clear()
