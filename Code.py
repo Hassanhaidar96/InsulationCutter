@@ -417,7 +417,7 @@ if valid_input and elements_data:
                 
                 
         
-        # DXF Generation - FIXED BINARY FORMAT
+        # DXF Generation
         st.subheader("DXF Export")
         if st.button('Generate DXF File'):
             if not valid_elements:
@@ -426,17 +426,17 @@ if valid_input and elements_data:
                 with st.spinner(f'Generating DXF with {len(valid_elements)} elements...'):
                     try:
                         doc = create_dxf(valid_elements)
-                        # FIX: Save to binary buffer
+                        # Save to a binary buffer without closing it prematurely
                         buffer = BytesIO()
                         doc.saveas(buffer)
-                        dxf_bytes = buffer.getvalue()
-                        buffer.close()
-
+                        dxf_bytes = buffer.getvalue()  # Retrieve the bytes before closing
+                        buffer.close()  # Now it's safe to close the buffer
+        
                         st.success("DXF generated successfully!")
                         
                         st.download_button(
                             label='Download DXF File',
-                            data=dxf_bytes,  # Use binary data
+                            data=dxf_bytes,
                             file_name='Insulation.dxf',
                             mime='application/dxf',
                             key='dxf_download'
@@ -444,10 +444,6 @@ if valid_input and elements_data:
                         
                     except Exception as e:
                         st.error(f"DXF generation failed: {str(e)}")
-
-# Final error catch for invalid elements
-elif not valid_input:
-    st.error("Please fix input errors to continue")
 
 
 
