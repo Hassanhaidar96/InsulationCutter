@@ -420,30 +420,31 @@ if valid_input and elements_data:
         # DXF Generation
         st.subheader("DXF Export")
         if st.button('Generate DXF File'):
-            if not valid_elements:
-                st.error("No valid elements to export")
-            else:
-                with st.spinner(f'Generating DXF with {len(valid_elements)} elements...'):
-                    try:
-                        doc = create_dxf(valid_elements)
-                        # Save to a binary buffer without closing it prematurely
-                        buffer = BytesIO()
-                        doc.saveas(buffer)
-                        dxf_bytes = buffer.getvalue()  # Retrieve the bytes before closing
-                        buffer.close()  # Now it's safe to close the buffer
-        
-                        st.success("DXF generated successfully!")
-                        
-                        st.download_button(
-                            label='Download DXF File',
-                            data=dxf_bytes,
-                            file_name='Insulation.dxf',
-                            mime='application/dxf',
-                            key='dxf_download'
-                        )
-                        
-                    except Exception as e:
-                        st.error(f"DXF generation failed: {str(e)}")
+            try:
+                # Create temporary file in memory
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.dxf') as tmp:
+                    # Generate DXF content
+                    doc = create_dxf(valid_elements)
+                    doc.saveas(tmp.name)
+                    
+                    # Read generated content
+                    tmp.seek(0)
+                    dxf_data = tmp.read()
+                
+                # Create download button
+                st.download_button(
+                    label='Download DXF File',
+                    data=dxf_data,
+                    file_name='Insulation.dxf',
+                    mime='application/dxf'
+                )
+                st.success("DXF generated successfully!")
+                
+            except Exception as e:
+                st.error(f"DXF generation failed: {str(e)}")
+            finally:
+                # Clean up temporary file
+                if 'tmp' in locals():
 
 
 
