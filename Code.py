@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 from io import BytesIO  
+import tempfile
+import os
 
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
@@ -394,18 +396,6 @@ if valid_input and elements_data:
     if not valid_elements:
         st.error("No valid elements to display or export. Please check your inputs.")
     else:
-        # # Display element summaries
-        # st.subheader("Element Summary")
-        # cols = st.columns(3)
-        # cols[0].markdown("**Element**")
-        # cols[1].markdown("**Length (mm)**")
-        # cols[2].markdown("**Height (mm)**")
-        
-        # for element in valid_elements:
-        #     cols = st.columns(3)
-        #     cols[0].write(f"Element {element['index']}")
-        #     cols[1].write(element['big_box_length'] - 10)  # Subtract the 10mm margin
-        #     cols[2].write(element['big_box_height'] - 20)  # Subtract the 20mm margin
         
         # Visualization
         if st.button('Visualize All Elements'):
@@ -417,19 +407,23 @@ if valid_input and elements_data:
                 
                 
         
-        # DXF Generation
+        # Modified DXF Generation
         st.subheader("DXF Export")
         if st.button('Generate DXF File'):
+            tmp = None  # Initialize tmp variable for cleanup
             try:
-                # Create temporary file in memory
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.dxf') as tmp:
-                    # Generate DXF content
-                    doc = create_dxf(valid_elements)
-                    doc.saveas(tmp.name)
-                    
-                    # Read generated content
-                    tmp.seek(0)
-                    dxf_data = tmp.read()
+                # Create temporary file
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.dxf')
+                
+                # Generate DXF content
+                doc = create_dxf(valid_elements)
+                doc.saveas(tmp.name)
+                st.write(f"Temporary file size: {os.path.getsize(tmp.name)} bytes")
+                tmp.close()  # Important: Close before reading
+                
+                # Read generated content
+                with open(tmp.name, 'rb') as f:
+                    dxf_data = f.read()
                 
                 # Create download button
                 st.download_button(
@@ -444,7 +438,18 @@ if valid_input and elements_data:
                 st.error(f"DXF generation failed: {str(e)}")
             finally:
                 # Clean up temporary file
-                if 'tmp' in locals():
+                if tmp and os.path.exists(tmp.name):
+                    os.unlink(tmp.name)
+                    
+                    
+                    
+                    
 
 
-
+                    
+                    
+                    
+                    
+            
+                    
+                    
