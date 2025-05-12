@@ -264,7 +264,7 @@ for i in range(num_elements):
 
     parts = code.split('/')
     if len(parts) < 6:
-        st.error(f'Element {i+1}: Invalid code format. Expected format like C/02-11/65.35.08/100/EPS/R0')
+        # st.error(f'Element {i+1}: Invalid code format. Expected format like C/02-11/65.35.08/100/EPS/R0')
         valid_input = False
         continue
 
