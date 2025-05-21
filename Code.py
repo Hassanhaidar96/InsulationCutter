@@ -59,7 +59,7 @@ def get_centers_05m(num_ribs):
 
 def get_centers_compact(num_ribs):
     centers = {
-        1: [55],
+        1: [64.5],
         2: [64.5, 164.5],
         3: [64.5, 164.5, 264.5],
         4: [64.5, 164.5, 264.5, 364.5],
@@ -72,27 +72,6 @@ def get_centers_compact(num_ribs):
     }
     return centers.get(num_ribs, [])
 
-
-# def get_centers_Length(num_ribs, Length):
-#     if num_ribs < 1:
-#         return []
-
-#     first_center = 64.5  # Fixed starting position
-#     if num_ribs == 1:
-#         min_length = first_center + 35  # 64.5 + 35 = 99.5mm
-#         return [first_center] if Length >= min_length else []
-
-#     last_center_max = Length - 35.5  # Maximum allowed last rib center position
-#     best_centers = []
-#     for spacing in range(100, 10000, 100):  
-#         total_span = spacing * (num_ribs - 1)
-#         last_center = first_center + total_span
-#         if last_center <= last_center_max:
-#             centers = [first_center + i * spacing for i in range(num_ribs)]
-#             best_centers = centers
-#         else:
-#             break
-#     return best_centers
 
 def get_centers_Length(num_ribs, Length):
     first_center = 64.5  # Starting position fixed
@@ -163,7 +142,7 @@ def get_centers_Length(num_ribs, Length):
         elif num_ribs == 4:
             spacings = [200, 100, 200]
         elif num_ribs == 3:
-            spacings = [200, 300]  # Not possible (num_200 = 3), will fail check
+            spacings = [200, 300]  
         elif num_ribs == 2:
             spacings = [500]  
     elif 50 <= cm <= 59:
