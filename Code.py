@@ -16,26 +16,6 @@ from matplotlib.ticker import FormatStrFormatter
 import tempfile
 import os
 
-def get_board_dimensions(insulation, insulation_thickness):
-    if insulation == 'EPS':
-        if insulation_thickness == 80:
-            return (2500, 1000)  # 2500mm vertical, 1000mm horizontal
-        elif insulation_thickness == 120:
-            return (2500, 1200)
-    elif insulation == 'SW':
-        if insulation_thickness == 80:
-            return (2400, 1200)
-        elif insulation_thickness == 120:
-            return (600, 1200)
-    elif insulation == 'XPS':
-        if insulation_thickness == 80:
-            return (3000, 1000)
-        elif insulation_thickness == 120:
-            return (600, 1200)
-    return (0, 0)  # default
-
-
-
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
         return Cb - 1, Ct - 1
@@ -227,150 +207,152 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
         return []
 
 
-def create_dxf(boards_with_x, board_vertical, board_horizontal):
+def create_dxf(elements_data):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
+    y_offset = 0
 
-    for x_offset, board_elements in boards_with_x:
-        y_offset = 0
-        for element in reversed(board_elements):
-            # Element dimensions
-            elem_width = element['big_box_length']  # Horizontal dimension
-            elem_height = element['big_box_height']  # Vertical dimension
-            
-            # Draw main box (rotated for vertical packing)
+    for element in reversed(elements_data): # To have the drawings in correct order
+        big_box_length = element['big_box_length']
+        big_box_height = element['big_box_height']
+        rib_centers = element['rib_centers']
+        small_box_width = element['small_box_width']
+        small_box_height = element['small_box_height']
+        Cb = element['Cb']
+
+        # Draw main box
+        msp.add_lwpolyline(
+            [(0, y_offset), (big_box_length, y_offset),
+             (big_box_length, y_offset + big_box_height),
+             (0, y_offset + big_box_height), (0, y_offset)],
+            close=True
+        )
+
+        # Draw ribs
+        y_initial = y_offset + (Cb * 10 + 10 - 0.75)
+        y_center = y_initial + (small_box_height / 2)
+        rib_edges = []
+
+        for center_x in rib_centers:
+            x1 = center_x - small_box_width / 2
+            x2 = center_x + small_box_width / 2
             msp.add_lwpolyline(
-                [(x_offset, y_offset), 
-                 (x_offset + elem_width, y_offset),
-                 (x_offset + elem_width, y_offset + elem_height),
-                 (x_offset, y_offset + elem_height), 
-                 (x_offset, y_offset)],
+                [(x1, y_initial), (x2, y_initial),
+                 (x2, y_initial + small_box_height),
+                 (x1, y_initial + small_box_height),
+                 (x1, y_initial)],
                 close=True
             )
+            rib_edges.append((x1, x2))
 
-            # Draw ribs
-            y_initial = y_offset + (Cb * 10 + 10 - 0.75)
-            y_center = y_initial + (small_box_height / 2)
-            rib_edges = []
+        # Draw connections
+        rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
+        current_pos = 0
+        connection_segments = []
+        
+        for rib_left, rib_right in rib_edges_sorted:
+            if current_pos < rib_left:
+                connection_segments.append((current_pos, rib_left))
+            current_pos = rib_right
+        
+        if current_pos < big_box_length:
+            connection_segments.append((current_pos, big_box_length))
+        
+        for start, end in connection_segments:
+            msp.add_line((start, y_center), (end, y_center))
 
-            for center_x in rib_centers:
-                x1 = x_offset + center_x - small_box_width / 2
-                x2 = x_offset + center_x + small_box_width / 2
-                msp.add_lwpolyline(
-                    [(x1, y_initial), (x2, y_initial),
-                     (x2, y_initial + small_box_height),
-                     (x1, y_initial + small_box_height),
-                     (x1, y_initial)],
-                    close=True
-                )
-                rib_edges.append((x1, x2))
-
-            # Draw connections
-            rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
-            current_pos = x_offset
-            connection_segments = []
-            
-            for rib_left, rib_right in rib_edges_sorted:
-                if current_pos < rib_left:
-                    connection_segments.append((current_pos, rib_left))
-                current_pos = rib_right
-            
-            if current_pos < x_offset + big_box_length:
-                connection_segments.append((current_pos, x_offset + big_box_length))
-            
-            for start, end in connection_segments:
-                msp.add_line((start, y_center), (end, y_center))
-
-            y_offset += elem_height  # Stack vertically
+        y_offset += big_box_height + 50  # 5cm spacing - Between Elements
 
     return doc
 
-def visualize(boards_with_x, board_width, board_height):
+def visualize(elements_data):
     fig, ax = plt.subplots(figsize=(10, 6))
-    max_x = 0
-    max_y = 0
+    y_offset = 0
 
-    for x_offset, board_elements in boards_with_x:
-        y_offset = 0
-        for element in reversed(board_elements):  # Maintain original stacking order
-            big_box_length = element['big_box_length']
-            big_box_height = element['big_box_height']
-            rib_centers = element['rib_centers']
-            small_box_width = element['small_box_width']
-            small_box_height = element['small_box_height']
-            Cb = element['Cb']
+    for element in reversed(elements_data):
+        big_box_length = element['big_box_length']
+        big_box_height = element['big_box_height']
+        rib_centers = element['rib_centers']
+        small_box_width = element['small_box_width']
+        small_box_height = element['small_box_height']
+        Cb = element['Cb']
 
-            # Draw main box
-            ax.add_patch(Rectangle((x_offset, y_offset), big_box_length, big_box_height,
-                                 fill=None, edgecolor='blue', linewidth=2))
+        # Draw main box
+        ax.add_patch(Rectangle((0, y_offset), big_box_length, big_box_height,
+                             fill=None, edgecolor='blue', linewidth=2))
 
-            # Draw ribs
-            y_initial = y_offset + (Cb * 10 + 10 + 0.75)
-            y_center = y_initial + (small_box_height / 2)
-            rib_edges = []
-            
-            for center_x in rib_centers:
-                x1 = x_offset + center_x - small_box_width / 2
-                x2 = x_offset + center_x + small_box_width / 2
-                ax.add_patch(Rectangle((x1, y_initial), small_box_width, small_box_height,
-                            fill=None, edgecolor='red', linewidth=2))
-                rib_edges.append((x1, x2))
+        # Draw ribs
+        y_initial = y_offset + (Cb * 10 + 10 + 0.75)
+        y_center = y_initial + (small_box_height / 2)
+        rib_edges = []
+        
+        for center_x in rib_centers:
+            x1 = center_x - small_box_width / 2
+            x2 = center_x + small_box_width / 2
+            ax.add_patch(Rectangle((x1, y_initial), small_box_width, small_box_height,
+                        fill=None, edgecolor='red', linewidth=2))
+            rib_edges.append((x1, x2))
 
-            # Draw connections
-            connection_segments = []
-            current_pos = x_offset
-            
-            rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
-            for rib_left, rib_right in rib_edges_sorted:
-                if current_pos < rib_left:
-                    connection_segments.append((current_pos, rib_left))
-                current_pos = rib_right
-            
-            if current_pos < x_offset + big_box_length:
-                connection_segments.append((current_pos, x_offset + big_box_length))
-            
-            for start, end in connection_segments:
-                ax.plot([start, end], [y_center, y_center], color='green',
-                       linestyle='-', linewidth=1.5)
+        # Draw connections
+        connection_segments = []
+        current_pos = 0
+        
+        rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
+        for rib_left, rib_right in rib_edges_sorted:
+            if current_pos < rib_left:
+                connection_segments.append((current_pos, rib_left))
+            current_pos = rib_right
+        
+        if current_pos < big_box_length:
+            connection_segments.append((current_pos, big_box_length))
+        
+        for start, end in connection_segments:
+            ax.plot([start, end], [y_center, y_center], color='green',
+                   linestyle='-', linewidth=1.5)
 
-            y_offset += big_box_height  # No spacing between elements
+        y_offset += big_box_height + 50  # 5cm spacing
 
-        # Update plot limits
-        max_x = max(max_x, x_offset + board_width)
-        max_y = max(max_y, y_offset)
-
-    ax.set_xlim(0, max_x)
-    ax.set_ylim(0, max_y)
+    # Configure plot
+    max_length = max(e['big_box_length'] for e in elements_data)
+    total_height = sum(e['big_box_height'] for e in elements_data) + 50 * (len(elements_data)-1)
+    ax.set_xlim(0, max_length)
+    ax.set_ylim(0, total_height)
     ax.set_aspect('equal', adjustable='box')
+    
+    # Formatting
+    all_centers = []
+    for e in elements_data:
+        all_centers.extend(e['rib_centers'])
+    xticks = [0] + sorted(all_centers) + [max_length]
+    yticks = []
+    current_y = 0
+    for e in reversed(elements_data):
+        yticks.append(current_y)
+        current_y += e['big_box_height']
+        yticks.append(current_y)
+        current_y += 50
+    ax.set_xticks(xticks)
+    ax.set_yticks(list(set(yticks)))
+    
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+    ax.set_xlabel("Length (mm)", fontsize=12)
+    ax.set_ylabel("Height (mm)", fontsize=12)
+    
+    # Add corner markers
+    ax.scatter([max_length], [0], color='black', marker='o', s=50, zorder=5)
+    ax.scatter([0], [total_height], color='black', marker='o', s=50, zorder=5)
+    
     ax.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
     return fig
 
 # Streamlit UI
-st.title('DXF Generator for FIRIKA Insulation')
+st.title('DXF Generator for FIRIKA Insulation (Multi-Element)')
 
-# Board configuration at the TOP
-st.header("Board Configuration")
-board_type = st.selectbox("Select board type", 
-                         ["EPS 80mm", "EPS 120mm",
-                          "SW 80mm", "SW 120mm",
-                          "XPS 80mm", "XPS 120mm"])
-
-# Parse board selection
-insulation, thickness = board_type.split()
-thickness = int(thickness.replace('mm', ''))
-board_width, board_height = get_board_dimensions(insulation, thickness)
-
-if board_width == 0 or board_height == 0:
-    st.error("Invalid board configuration selected")
-    st.stop()
-
-st.write(f"Selected board dimensions: {board_width} x {board_height} mm")
-
-# Element configuration
 # Get number of elements
-st.header("Element Input")
 num_elements = st.number_input('Number of elements', min_value=1, max_value=10, value=1, step=1)
 
 # Collect element codes
@@ -515,104 +497,50 @@ if valid_input and elements_data:
     if not valid_elements:
         st.error("No valid elements to display or export. Please check your inputs.")
     else:
-        # Filter elements that fit in board dimensions
-        board_vertical, board_horizontal = board_height, board_width  # Using correct orientation
-        valid_filtered = []
-        invalid_width = []
-        invalid_height = []
         
-        for e in valid_elements:
-            elem_width = e['big_box_length']
-            elem_height = e['big_box_height']
-            if elem_width > board_horizontal:
-                invalid_width.append(e['index'])
-            elif elem_height > board_vertical:
-                invalid_height.append(e['index'])
-            else:
-                valid_filtered.append(e)
-        
-        # Show dimension errors
-        if invalid_width:
-            st.error(f"Elements too wide for board ({board_horizontal}mm): {invalid_width}")
-        if invalid_height:
-            st.error(f"Elements too tall for board ({board_vertical}mm): {invalid_height}")
-        
-        if valid_filtered:
-            # Pack elements into boards vertically
-            boards = []
-            current_board = []
-            current_height = 0
-            
-            for element in valid_filtered:
-                elem_height = element['big_box_height']
+        # Visualization
+        if st.button('Visualize All Elements'):
+            try:
+                fig = visualize(valid_elements)
+                st.pyplot(fig)  # Removed expander block
+            except Exception as e:
+                st.error(f"Visualization error: {str(e)}")
                 
-                if current_height + elem_height <= board_vertical:
-                    current_board.append(element)
-                    current_height += elem_height
-                else:
-                    boards.append(current_board)
-                    current_board = [element]
-                    current_height = elem_height
-            
-            if current_board:
-                boards.append(current_board)
-            
-            # Calculate board positions with spacing
-            board_spacing = 50  # 5cm between boards
-            x_positions = []
-            current_x = 0
-            
-            for _ in boards:
-                x_positions.append(current_x)
-                current_x += board_horizontal + board_spacing
-            
-            boards_with_x = list(zip(x_positions, boards))
-            
-            # Visualization
-            if st.button('Visualize All Boards'):
-                try:
-                    fig = visualize(boards_with_x, board_horizontal, board_vertical)
-                    st.pyplot(fig)
-                except Exception as e:
-                    st.error(f"Visualization error: {str(e)}")
-            
-            # DXF Generation
-            st.subheader("DXF Export")
-            if st.button('Generate DXF File'):
-                tmp = None
-                try:
-                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.dxf')
-                    doc = create_dxf(boards_with_x, board_horizontal, board_vertical)
-                    doc.saveas(tmp.name)
-                    tmp.close()
-                    
-                    with open(tmp.name, 'rb') as f:
-                        dxf_data = f.read()
-                    
-                    st.download_button(
-                        label='Download DXF File',
-                        data=dxf_data,
-                        file_name='Insulation_boards.dxf',
-                        mime='application/dxf'
-                    )
-                    st.success("DXF generated with board packing!")
-                except Exception as e:
-                    st.error(f"DXF generation failed: {str(e)}")
-                finally:
-                    if tmp and os.path.exists(tmp.name):
-                        os.unlink(tmp.name)
-            
-            # Board summary
-            st.subheader("Board Summary")
-            st.write(f"Number of boards needed: {len(boards)}")
-            for i, (x, board) in enumerate(boards_with_x, 1):
-                total_height = sum(e['big_box_height'] for e in board)
-                st.write(f"Board {i}: {len(board)} elements, "
-                        f"Used height: {total_height}/{board_vertical}mm, "
-                        f"Position: X={x}mm")
+                
         
-        else:
-            st.error("No valid elements fit in the selected board configuration.")
+        # Modified DXF Generation
+        st.subheader("DXF Export")
+        if st.button('Generate DXF File'):
+            tmp = None  # Initialize tmp variable for cleanup
+            try:
+                # Create temporary file
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.dxf')
+                
+                # Generate DXF content
+                doc = create_dxf(valid_elements)
+                doc.saveas(tmp.name)
+                st.write(f"Temporary file size: {os.path.getsize(tmp.name)} bytes")
+                tmp.close()  # Important: Close before reading
+                
+                # Read generated content
+                with open(tmp.name, 'rb') as f:
+                    dxf_data = f.read()
+                
+                # Create download button
+                st.download_button(
+                    label='Download DXF File',
+                    data=dxf_data,
+                    file_name='Insulation.dxf',
+                    mime='application/dxf'
+                )
+                st.success("DXF generated successfully!")
+                
+            except Exception as e:
+                st.error(f"DXF generation failed: {str(e)}")
+            finally:
+                # Clean up temporary file
+                if tmp and os.path.exists(tmp.name):
+                    os.unlink(tmp.name)
                     
                     
                     
