@@ -19,7 +19,7 @@ import os
 def get_board_dimensions(insulation, insulation_thickness):
     if insulation == 'EPS':
         if insulation_thickness == 80:
-            return (2500, 1000)
+            return (2500, 1000)  # 2500mm vertical, 1000mm horizontal
         elif insulation_thickness == 120:
             return (2500, 1200)
     elif insulation == 'SW':
@@ -227,26 +227,25 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
         return []
 
 
-def create_dxf(boards_with_x, board_width, board_height):
+def create_dxf(boards_with_x, board_vertical, board_horizontal):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
 
     for x_offset, board_elements in boards_with_x:
         y_offset = 0
-        for element in reversed(board_elements):  # Maintain original stacking order
-            big_box_length = element['big_box_length']
-            big_box_height = element['big_box_height']
-            rib_centers = element['rib_centers']
-            small_box_width = element['small_box_width']
-            small_box_height = element['small_box_height']
-            Cb = element['Cb']
-
-            # Draw main box
+        for element in reversed(board_elements):
+            # Element dimensions
+            elem_width = element['big_box_length']  # Horizontal dimension
+            elem_height = element['big_box_height']  # Vertical dimension
+            
+            # Draw main box (rotated for vertical packing)
             msp.add_lwpolyline(
-                [(x_offset, y_offset), (x_offset + big_box_length, y_offset),
-                 (x_offset + big_box_length, y_offset + big_box_height),
-                 (x_offset, y_offset + big_box_height), (x_offset, y_offset)],
+                [(x_offset, y_offset), 
+                 (x_offset + elem_width, y_offset),
+                 (x_offset + elem_width, y_offset + elem_height),
+                 (x_offset, y_offset + elem_height), 
+                 (x_offset, y_offset)],
                 close=True
             )
 
@@ -283,7 +282,7 @@ def create_dxf(boards_with_x, board_width, board_height):
             for start, end in connection_segments:
                 msp.add_line((start, y_center), (end, y_center))
 
-            y_offset += big_box_height  # No spacing between elements
+            y_offset += elem_height  # Stack vertically
 
     return doc
 
@@ -349,7 +348,7 @@ def visualize(boards_with_x, board_width, board_height):
     return fig
 
 # Streamlit UI
-st.title('DXF Generator for FIRIKA Insulation (Multi-Element)')
+st.title('DXF Generator for FIRIKA Insulation')
 
 # Board configuration at the TOP
 st.header("Board Configuration")
@@ -506,91 +505,114 @@ for i in range(num_elements):
 
 # Visualization and DXF Generation
 if valid_input and elements_data:
-    # Check for invalid elements
+    # Check for elements with invalid rib configurations
     invalid_elements = [e['index'] for e in elements_data if not e['rib_centers']]
     valid_elements = [e for e in elements_data if e['rib_centers']]
     
     if invalid_elements:
-        st.warning(f"Undefined spacing rules for elements: {', '.join(map(str, invalid_elements))}")
+        st.warning(f"The following elements have undefined spacing rules and won't be included: {', '.join(map(str, invalid_elements))}")
     
-    if valid_elements:
-    #     # Board configuration
-    #     st.subheader("Board Configuration")
-    #     insulation = st.selectbox("Insulation Type", ['EPS', 'SW', 'XPS'])
-    #     insulation_thickness = st.selectbox("Insulation Thickness (mm)", [80, 120])
-    #     board_width, board_height = get_board_dimensions(insulation, insulation_thickness)
+    if not valid_elements:
+        st.error("No valid elements to display or export. Please check your inputs.")
+    else:
+        # Filter elements that fit in board dimensions
+        board_vertical, board_horizontal = board_height, board_width  # Using correct orientation
+        valid_filtered = []
+        invalid_width = []
+        invalid_height = []
         
-    #     if board_width == 0 or board_height == 0:
-    #         st.error("Invalid board configuration selected.")
-    #     else:
-    #         st.write(f"Board Dimensions: {board_width}x{board_height} mm")
-
-            # Filter elements that fit in board
-            valid_filtered = [e for e in valid_elements 
-                            if e['big_box_length'] <= board_width and e['big_box_height'] <= board_height]
-            invalid_length = [e['index'] for e in valid_elements if e['big_box_length'] > board_width]
-            invalid_height = [e['index'] for e in valid_elements if e['big_box_height'] > board_height]
-            
-            if invalid_length:
-                st.error(f"Elements too wide: {invalid_length}")
-            if invalid_height:
-                st.error(f"Elements too tall: {invalid_height}")
-            
-            if valid_filtered:
-                # Arrange elements into boards
-                boards = []
-                current_board = []
-                current_height = 0
-                for element in valid_filtered:
-                    element_height = element['big_box_height']
-                    if current_height + element_height <= board_height:
-                        current_board.append(element)
-                        current_height += element_height
-                    else:
-                        boards.append(current_board)
-                        current_board = [element]
-                        current_height = element_height
-                if current_board:
-                    boards.append(current_board)
-
-                # Calculate board positions
-                spacing = 50  # mm between boards
-                x_positions = []
-                current_x = 0
-                for _ in boards:
-                    x_positions.append(current_x)
-                    current_x += board_width + spacing
-                boards_with_x = list(zip(x_positions, boards))
-
-                # Visualization and DXF
-                if st.button('Visualize All Elements'):
-                    fig = visualize(boards_with_x, board_width, board_height)
-                    st.pyplot(fig)
-
-                if st.button('Generate DXF File'):
-                    try:
-                        doc = create_dxf(boards_with_x, board_width, board_height)
-                        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.dxf')
-                        doc.saveas(tmp.name)
-                        tmp.close()
-                        
-                        with open(tmp.name, 'rb') as f:
-                            dxf_data = f.read()
-                        os.unlink(tmp.name)
-                        
-                        st.download_button(
-                            label='Download DXF',
-                            data=dxf_data,
-                            file_name='insulation.dxf',
-                            mime='application/dxf'
-                        )
-                    except Exception as e:
-                        st.error(f"Error generating DXF: {str(e)}")
-                    finally:
-                        if os.path.exists(tmp.name):
-                            os.unlink(tmp.name)
+        for e in valid_elements:
+            elem_width = e['big_box_length']
+            elem_height = e['big_box_height']
+            if elem_width > board_horizontal:
+                invalid_width.append(e['index'])
+            elif elem_height > board_vertical:
+                invalid_height.append(e['index'])
             else:
-                st.error("No valid elements fit in the selected board configuration.")
+                valid_filtered.append(e)
+        
+        # Show dimension errors
+        if invalid_width:
+            st.error(f"Elements too wide for board ({board_horizontal}mm): {invalid_width}")
+        if invalid_height:
+            st.error(f"Elements too tall for board ({board_vertical}mm): {invalid_height}")
+        
+        if valid_filtered:
+            # Pack elements into boards vertically
+            boards = []
+            current_board = []
+            current_height = 0
+            
+            for element in valid_filtered:
+                elem_height = element['big_box_height']
+                
+                if current_height + elem_height <= board_vertical:
+                    current_board.append(element)
+                    current_height += elem_height
+                else:
+                    boards.append(current_board)
+                    current_board = [element]
+                    current_height = elem_height
+            
+            if current_board:
+                boards.append(current_board)
+            
+            # Calculate board positions with spacing
+            board_spacing = 50  # 5cm between boards
+            x_positions = []
+            current_x = 0
+            
+            for _ in boards:
+                x_positions.append(current_x)
+                current_x += board_horizontal + board_spacing
+            
+            boards_with_x = list(zip(x_positions, boards))
+            
+            # Visualization
+            if st.button('Visualize All Boards'):
+                try:
+                    fig = visualize(boards_with_x, board_horizontal, board_vertical)
+                    st.pyplot(fig)
+                except Exception as e:
+                    st.error(f"Visualization error: {str(e)}")
+            
+            # DXF Generation
+            st.subheader("DXF Export")
+            if st.button('Generate DXF File'):
+                tmp = None
+                try:
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.dxf')
+                    doc = create_dxf(boards_with_x, board_horizontal, board_vertical)
+                    doc.saveas(tmp.name)
+                    tmp.close()
+                    
+                    with open(tmp.name, 'rb') as f:
+                        dxf_data = f.read()
+                    
+                    st.download_button(
+                        label='Download DXF File',
+                        data=dxf_data,
+                        file_name='Insulation_boards.dxf',
+                        mime='application/dxf'
+                    )
+                    st.success("DXF generated with board packing!")
+                except Exception as e:
+                    st.error(f"DXF generation failed: {str(e)}")
+                finally:
+                    if tmp and os.path.exists(tmp.name):
+                        os.unlink(tmp.name)
+            
+            # Board summary
+            st.subheader("Board Summary")
+            st.write(f"Number of boards needed: {len(boards)}")
+            for i, (x, board) in enumerate(boards_with_x, 1):
+                total_height = sum(e['big_box_height'] for e in board)
+                st.write(f"Board {i}: {len(board)} elements, "
+                        f"Used height: {total_height}/{board_vertical}mm, "
+                        f"Position: X={x}mm")
+        
+        else:
+            st.error("No valid elements fit in the selected board configuration.")
                     
                     
                     
