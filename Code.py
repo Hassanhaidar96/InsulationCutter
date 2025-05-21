@@ -351,7 +351,27 @@ def visualize(boards_with_x, board_width, board_height):
 # Streamlit UI
 st.title('DXF Generator for FIRIKA Insulation (Multi-Element)')
 
+# Board configuration at the TOP
+st.header("Board Configuration")
+board_type = st.selectbox("Select board type", 
+                         ["EPS 80mm", "EPS 120mm",
+                          "SW 80mm", "SW 120mm",
+                          "XPS 80mm", "XPS 120mm"])
+
+# Parse board selection
+insulation, thickness = board_type.split()
+thickness = int(thickness.replace('mm', ''))
+board_width, board_height = get_board_dimensions(insulation, thickness)
+
+if board_width == 0 or board_height == 0:
+    st.error("Invalid board configuration selected")
+    st.stop()
+
+st.write(f"Selected board dimensions: {board_width} x {board_height} mm")
+
+# Element configuration
 # Get number of elements
+st.header("Element Input")
 num_elements = st.number_input('Number of elements', min_value=1, max_value=10, value=1, step=1)
 
 # Collect element codes
@@ -494,16 +514,16 @@ if valid_input and elements_data:
         st.warning(f"Undefined spacing rules for elements: {', '.join(map(str, invalid_elements))}")
     
     if valid_elements:
-        # Board configuration
-        st.subheader("Board Configuration")
-        insulation = st.selectbox("Insulation Type", ['EPS', 'SW', 'XPS'])
-        insulation_thickness = st.selectbox("Insulation Thickness (mm)", [80, 120])
-        board_width, board_height = get_board_dimensions(insulation, insulation_thickness)
+    #     # Board configuration
+    #     st.subheader("Board Configuration")
+    #     insulation = st.selectbox("Insulation Type", ['EPS', 'SW', 'XPS'])
+    #     insulation_thickness = st.selectbox("Insulation Thickness (mm)", [80, 120])
+    #     board_width, board_height = get_board_dimensions(insulation, insulation_thickness)
         
-        if board_width == 0 or board_height == 0:
-            st.error("Invalid board configuration selected.")
-        else:
-            st.write(f"Board Dimensions: {board_width}x{board_height} mm")
+    #     if board_width == 0 or board_height == 0:
+    #         st.error("Invalid board configuration selected.")
+    #     else:
+    #         st.write(f"Board Dimensions: {board_width}x{board_height} mm")
 
             # Filter elements that fit in board
             valid_filtered = [e for e in valid_elements 
