@@ -159,7 +159,7 @@ def get_centers_Length(num_ribs, Length):
         if num_ribs == 6:
             spacings = [100] * 5
         elif num_ribs == 5:
-            spacings = [100, 100, 100, 100]
+            spacings = [100, 100, 200, 100]
         elif num_ribs == 4:
             spacings = [200, 100, 200]
         elif num_ribs == 3:
