@@ -350,16 +350,16 @@ def visualize(elements_data):
     return fig
 
 # Streamlit UI
-st.title('DXF Generator for FIRIKA Insulation (Multi-Element)')
+st.title('DXF-Generator für FIRIKA Dämmung')
 
 # Get number of elements
-num_elements = st.number_input('Number of elements', min_value=1, max_value=10, value=1, step=1)
+num_elements = st.number_input('Anzahl der Elemente', min_value=1, max_value=10, value=1, step=1)
 
 # Collect element codes
 elements_data = []
 valid_input = True
 for i in range(num_elements):
-    code = st.text_input(f'Enter product code for element {i+1}',
+    code = st.text_input(f'Produktcode für Element eingeben {i+1}',
                         placeholder='e.g., C/02-11/65.35.08/100/EPS/R0',
                         key=f'code_{i}')
 
@@ -499,18 +499,18 @@ if valid_input and elements_data:
     else:
         
         # Visualization
-        if st.button('Visualize All Elements'):
+        if st.button('Alle Elemente visualisieren'):
             try:
                 fig = visualize(valid_elements)
                 st.pyplot(fig)  # Removed expander block
             except Exception as e:
-                st.error(f"Visualization error: {str(e)}")
+                st.error(f"Fehler bei der Visualisierung: {str(e)}")
                 
                 
         
         # Modified DXF Generation
-        st.subheader("DXF Export")
-        if st.button('Generate DXF File'):
+        st.subheader("DXF-Export")
+        if st.button('DXF-Datei generieren'):
             tmp = None  # Initialize tmp variable for cleanup
             try:
                 # Create temporary file
