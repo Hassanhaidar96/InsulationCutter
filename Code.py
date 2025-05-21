@@ -16,11 +16,13 @@ from matplotlib.ticker import FormatStrFormatter
 import tempfile
 import os
 
+# Set page config first
 st.set_page_config(
     page_icon="LogoTab.png",  
     page_title="FirikaWebapp"  
 )
 
+# Hardcoded credentials (for demo)
 USERNAME = "admin"
 PASSWORD = "password123"
 
@@ -28,7 +30,8 @@ PASSWORD = "password123"
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-def login_page():
+# --- LOGIN CHECK AT THE TOP OF YOUR SCRIPT ---
+if not st.session_state.logged_in:
     st.title("Login")
     
     username = st.text_input("Username")
@@ -37,11 +40,12 @@ def login_page():
     if st.button("Login"):
         if username == USERNAME and password == PASSWORD:
             st.session_state.logged_in = True
-            st.rerun()  # This will restart the script with logged_in=True
+            st.rerun()  # Restart the script with logged_in=True
         else:
             st.error("Invalid username or password")
     
     st.write("Please enter your credentials")
+    st.stop()  # This will stop the rest of your app from running
             
 ###############################################################################
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
