@@ -72,6 +72,7 @@ def get_centers_compact(num_ribs):
     }
     return centers.get(num_ribs, [])
 
+
 # def get_centers_Length(num_ribs, Length):
 #     if num_ribs < 1:
 #         return []
@@ -93,100 +94,125 @@ def get_centers_compact(num_ribs):
 #             break
 #     return best_centers
 
-def generate_position_order(n):
-    positions = []
-    if n % 2 == 1:
-        mid = n // 2
-        positions.append(mid)
-        for i in range(1, mid + 1):
-            left = mid - i
-            if left >= 0:
-                positions.append(left)
-            right = mid + i
-            if right < n:
-                positions.append(right)
-    else:
-        mid_left = (n // 2) - 1
-        mid_right = mid_left + 1
-        positions.append(mid_left)
-        positions.append(mid_right)
-        for i in range(1, mid_left + 1):
-            left = mid_left - i
-            if left >= 0:
-                positions.append(left)
-            right = mid_right + i
-            if right < n:
-                positions.append(right)
-    return positions
-
 def get_centers_Length(num_ribs, Length):
-    if num_ribs < 1:
-        return []
-    first_center = 64.5  # Fixed starting position
-    if num_ribs == 1:
-        min_length = first_center + 35  # 64.5 + 35 = 99.5 mm
-        return [first_center] if Length >= min_length else []
+    first_center = 64.5  # Starting position fixed
+    last_center_max = Length - 35.5  # Last center must be <= this value
     
-    # Determine the max_ribs based on Length in cm
-    cm = Length // 10  # convert mm to cm, integer division
-    if cm >= 90:
+    # Determine the maximum number of ribs based on Length (converted to cm)
+    cm = Length // 10  # Convert mm to cm via integer division
+    
+    # Initialize variables to hold spacings
+    spacings = []
+    
+    # Determine spacings based on cm range and num_ribs
+    if 90 <= cm <= 99:
         max_ribs = 9
-    elif cm >= 80:
+        if num_ribs == 9:
+            spacings = [100] * 8
+        elif num_ribs == 8:
+            spacings = [100, 100, 100, 200, 100, 100, 100]
+        elif num_ribs == 7:
+            spacings = [100, 100, 200, 200, 100, 100]
+        elif num_ribs == 6:
+            spacings = [100, 200, 200, 200, 100]
+        elif num_ribs == 5:
+            spacings = [200, 200, 200, 200]
+        elif num_ribs == 4:
+            spacings = [300, 200, 300]  
+        elif num_ribs == 3:
+            spacings = [400, 400] 
+        elif num_ribs == 2:
+            spacings = [800]  
+            
+    elif 80 <= cm <= 89:
         max_ribs = 8
-    elif cm >= 70:
+        if num_ribs == 8:
+            spacings = [100] * 7
+        elif num_ribs == 7:
+            spacings = [100, 100, 200, 100, 100,100]
+        elif num_ribs == 6:
+            spacings = [100, 100, 200, 100,100]
+        elif num_ribs == 5:
+            spacings = [200, 200, 200,100]
+        elif num_ribs == 4:
+            spacings = [200,300,200]  
+        elif num_ribs == 3:
+            spacings = [300, 400]  
+        elif num_ribs == 2:
+            spacings = [700]  
+    elif 70 <= cm <= 79:
         max_ribs = 7
-    elif cm >= 60:
+        if num_ribs == 7:
+            spacings = [100] * 6
+        elif num_ribs == 6:
+            spacings = [100, 100, 200, 100, 100]
+        elif num_ribs == 5:
+            spacings = [100, 200, 200, 100]
+        elif num_ribs == 4:
+            spacings = [200, 200, 200]
+        elif num_ribs == 3:
+            spacings = [200, 200] 
+        elif num_ribs == 2:
+            spacings = [600]  
+    elif 60 <= cm <= 69:
         max_ribs = 6
-    elif cm >= 50:
+        if num_ribs == 6:
+            spacings = [100] * 5
+        elif num_ribs == 5:
+            spacings = [100, 100, 100, 100]
+        elif num_ribs == 4:
+            spacings = [200, 100, 200]
+        elif num_ribs == 3:
+            spacings = [200, 300]  # Not possible (num_200 = 3), will fail check
+        elif num_ribs == 2:
+            spacings = [500]  
+    elif 50 <= cm <= 59:
         max_ribs = 5
-    elif cm >= 40:
+        if num_ribs == 5:
+            spacings = [100] * 4
+        elif num_ribs == 4:
+            spacings = [100, 200, 100]
+        elif num_ribs == 3:
+            spacings = [200, 200]
+        elif num_ribs == 2:
+            spacings = [400]  
+    elif 40 <= cm <= 49:
         max_ribs = 4
-    elif cm >= 30:
+        if num_ribs == 4:
+            spacings = [100] * 3
+        elif num_ribs == 3:
+            spacings = [200, 100]
+        elif num_ribs == 2:
+            spacings = [300] 
+    elif 30 <= cm <= 39:
         max_ribs = 3
-    elif cm >= 20:
+        if num_ribs == 3:
+            spacings = [100] * 2
+        elif num_ribs == 2:
+            spacings = [200]
+    elif 20 <= cm <= 29:
         max_ribs = 2
-    else:  # 11-19 cm
-        max_ribs = 2
+        if num_ribs == 2:
+            spacings = [100]
+    else:
+        return []  # Length is below 20 cm
     
-    # Check if num_ribs is within the allowed range for this Length
-    if not (2 <= num_ribs <= max_ribs):
+    # Check if num_ribs is invalid for the cm range
+    if num_ribs < 2 or num_ribs > max_ribs:
         return []
     
-    # Calculate the number of 200 spacings
-    num_200 = max_ribs - num_ribs
-    
-    # Generate spacings
-    n_spacings = num_ribs - 1
-    spacings = [100] * n_spacings
-    
-    # Distribute the 200 spacings symmetrically
-    if num_200 > 0:
-        positions = generate_position_order(n_spacings)
-        # Take the first 'num_200' positions
-        for i in range(num_200):
-            if i < len(positions):
-                pos = positions[i]
-                spacings[pos] += 100  # Convert 100 to 200
-    
-    # Calculate total_span
-    total_span = sum(spacings)
-    
-    # Check if the last_center is within the allowed range
-    last_center = first_center + total_span
-    last_center_max = Length - 35.5
-    if last_center > last_center_max + 1e-9:  # Floating point tolerance
-        return []
-    
-    # Generate the centers
+    # Calculate the centers
     centers = [first_center]
     current = first_center
     for s in spacings:
         current += s
-        centers.append(round(current, 1))  # Round to avoid floating point errors
+        centers.append(round(current, 1))  # Round to avoid floating issues
+    
+    # Check if the last center exceeds the allowed position
+    if centers[-1] > last_center_max + 1e-9:  # Floating point tolerance
+        return []
     
     return centers
-
-
 
 
 
