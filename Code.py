@@ -213,7 +213,7 @@ def create_dxf(elements_data):
     msp = doc.modelspace()
     y_offset = 0
 
-    for element in elements_data:
+    for element in reversed(elements_data): # To have the drawings in correct order
         big_box_length = element['big_box_length']
         big_box_height = element['big_box_height']
         rib_centers = element['rib_centers']
@@ -270,7 +270,7 @@ def visualize(elements_data):
     fig, ax = plt.subplots(figsize=(10, 6))
     y_offset = 0
 
-    for element in elements_data:
+    for element in reversed(elements_data):
         big_box_length = element['big_box_length']
         big_box_height = element['big_box_height']
         rib_centers = element['rib_centers']
@@ -327,7 +327,7 @@ def visualize(elements_data):
     xticks = [0] + sorted(all_centers) + [max_length]
     yticks = []
     current_y = 0
-    for e in elements_data:
+    for e in reversed(elements_data):
         yticks.append(current_y)
         current_y += e['big_box_height']
         yticks.append(current_y)
