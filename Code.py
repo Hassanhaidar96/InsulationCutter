@@ -21,6 +21,22 @@ st.set_page_config(
     page_title="FirikaWebapp"  
 )
 
+USERNAME = "admin"
+PASSWORD = "password123"
+
+st.title("Login")
+    
+username = st.text_input("Username")
+password = st.text_input("Password", type="password")
+    
+if st.button("Login"):
+    if username == USERNAME and password == PASSWORD:
+            st.session_state.logged_in = True
+            st.rerun()
+    else:
+            st.error("Invalid username or password")
+            
+
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
         return Cb - 1, Ct - 1
