@@ -16,6 +16,11 @@ from matplotlib.ticker import FormatStrFormatter
 import tempfile
 import os
 
+st.set_page_config(
+    page_icon="LogoTab.png",  
+    page_title="FirikaWebapp"  
+)
+
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
         return Cb - 1, Ct - 1
