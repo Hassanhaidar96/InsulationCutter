@@ -23,8 +23,8 @@ st.set_page_config(
 )
 
 # Hardcoded credentials (for demo)
-USERNAME = "admin"
-PASSWORD = "password123"
+USERNAME = "FischerRista"
+PASSWORD = "FischerRista"
 
 # Initialize session state for login
 if 'logged_in' not in st.session_state:
