@@ -26,15 +26,22 @@ PASSWORD = "password123"
 
 st.title("Login")
     
-username = st.text_input("Username")
-password = st.text_input("Password", type="password")
+def login():
+    st.title("Login")
     
-if st.button("Login"):
-    if username == USERNAME and password == PASSWORD:
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    
+    if st.button("Login"):
+        if username == USERNAME and password == PASSWORD:
             st.session_state.logged_in = True
             st.rerun()
-    else:
+        else:
             st.error("Invalid username or password")
+            st.stop()  # Stops execution here
+            
+    # This code won't run if st.stop() is called
+    st.write("Please enter your credentials")
             
 
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
