@@ -500,7 +500,13 @@ for i in range(num_elements):
     # Calculate dimensions
     big_box_length = element_length_mm + 10.0
     big_box_height = (Cb + Ct + h_rib) * 10 + 20
-    small_box_width = 18 if insulation == 'SW' else 17
+    # small_box_width = 18 if insulation == 'SW' else 17
+    
+    if num_ribs < 5:
+        small_box_width = 18 if insulation == 'SW' else 17
+    else:
+        small_box_width = 18.5 if insulation == 'SW' else 17.5
+        
     small_box_height = h_rib * 10 + 1.5
 
     # Calculate rib centers
