@@ -373,27 +373,27 @@ for i in range(num_elements):
     rib_part = parts[1]
     rib_info = rib_part.split('-')
     if len(rib_info) != 2:
-        st.error(f'Element {i+1}: Invalid rib info: {rib_part}. Expected format like 02-11.')
+        st.error(f'Element {i+1}: Ungültige Rippeninformationen: {rib_part}. Erwartetes Format 02-10.')
         valid_input = False
         continue
     
     try:
         num_ribs = int(rib_info[0])
         if num_ribs < 1 or num_ribs > 10:
-            st.error(f'Element {i+1}: Number of ribs must be between 1 and 10.')
+            st.error(f'Element {i+1}: Die Anzahl der Rippen muss zwischen 1 und 10 liegen.')
             valid_input = False
     except ValueError:
-        st.error(f'Element {i+1}: Invalid number of ribs: {rib_info[0]}. Must be an integer.')
+        st.error(f'Element {i+1}: Ungültige Anzahl von Rippen: {rib_info[0]}. Must be an integer.')
         valid_input = False
         continue
     
     try:
         h_rib = int(rib_info[1])
         if h_rib not in [11, 13, 15, 17, 19]:
-            st.error(f'Element {i+1}: Rib height must be one of: 11, 13, 15, 17, 19 cm.')
+            st.error(f'Element {i+1}: Die Rippenhöhe muss einer der folgenden Werte entsprechen: 11, 13, 15, 17, 19 cm.')
             valid_input = False
     except ValueError:
-        st.error(f'Element {i+1}: Invalid rib height: {rib_info[1]}. Must be an integer.')
+        st.error(f'Element {i+1}: Ungültige Rippenhöhe: {rib_info[1]}. Must be an integer.')
         valid_input = False
         continue
 
@@ -401,7 +401,7 @@ for i in range(num_elements):
     covers_part = parts[2]
     covers_info = covers_part.split('.')
     if len(covers_info) < 3:
-        st.error(f'Element {i+1}: Invalid covers info: {covers_part}. Expected format like 65.35.08.')
+        st.error(f'Element {i+1}: Ungültige Cover-Informationen: {covers_part}. Expected format like 65.35.08.')
         valid_input = False
         continue
     
@@ -409,7 +409,7 @@ for i in range(num_elements):
         Ct_mm = int(covers_info[0])
         Cb_mm = int(covers_info[1])
     except ValueError:
-        st.error(f'Element {i+1}: Invalid concrete cover values: {covers_info[0]} or {covers_info[1]}. Must be integers.')
+        st.error(f'Element {i+1}: Ungültige Betondeckungswerte: {covers_info[0]} or {covers_info[1]}. Must be integers.')
         valid_input = False
         continue
 
@@ -417,14 +417,14 @@ for i in range(num_elements):
     try:
         element_length_code = int(parts[3])
     except ValueError:
-        st.error(f'Element {i+1}: Invalid element length code: {parts[3]}. Must be a number.')
+        st.error(f'Element {i+1}: Ungültiger Elementlängencode: {parts[3]}. Must be a number.')
         valid_input = False
         continue
 
     # Parse insulation type
     insulation_type = parts[4]
     if insulation_type not in ['EPS', 'XPS', 'SW']:
-        st.error(f'Element {i+1}: Invalid insulation type: {insulation_type}. Must be EPS, XPS, or SW.')
+        st.error(f'Element {i+1}: Ungültiger dämmung typ: {insulation_type}. Must be EPS, XPS, or SW.')
         valid_input = False
         continue
     else:
@@ -433,11 +433,11 @@ for i in range(num_elements):
     # Parse fire resistance
     fire_resistance = parts[5]
     if insulation == 'SW' and fire_resistance != 'REI120':
-        st.error(f'Element {i+1}: SW insulation must have fire resistance REI120.')
+        st.error(f'Element {i+1}: SW-Dämmung muss feuerbeständig sein REI120.')
         valid_input = False
         continue
     elif insulation == 'EPS/XPS' and fire_resistance not in ['R0', 'REI60', 'REI90']:
-        st.error(f'Element {i+1}: Invalid fire resistance for EPS/XPS: {fire_resistance}. Allowed: R0, REI60, REI90.')
+        st.error(f'Element {i+1}: Ungültiger Feuerwiderstand für EPS/XPS: {fire_resistance}. Erlaubt: R0, REI60, REI90.')
         valid_input = False
         continue
 
@@ -492,10 +492,10 @@ if valid_input and elements_data:
     valid_elements = [e for e in elements_data if e['rib_centers']]
     
     if invalid_elements:
-        st.warning(f"The following elements have undefined spacing rules and won't be included: {', '.join(map(str, invalid_elements))}")
+        st.warning(f"Die folgenden Elemente haben undefinierte Abstandsregeln und werden nicht berücksichtigt: {', '.join(map(str, invalid_elements))}")
     
     if not valid_elements:
-        st.error("No valid elements to display or export. Please check your inputs.")
+        st.error("Keine gültigen Elemente zum Anzeigen oder Exportieren. Bitte überprüfen Sie Ihre Eingaben.")
     else:
         
         # Visualization
@@ -528,15 +528,15 @@ if valid_input and elements_data:
                 
                 # Create download button
                 st.download_button(
-                    label='Download DXF File',
+                    label='Download DXF-Datei',
                     data=dxf_data,
-                    file_name='Insulation.dxf',
+                    file_name='Dämmung.dxf',
                     mime='application/dxf'
                 )
-                st.success("DXF generated successfully!")
+                st.success("DXF erfolgreich generiert!")
                 
             except Exception as e:
-                st.error(f"DXF generation failed: {str(e)}")
+                st.error(f"DXF-Generierung fehlgeschlagen: {str(e)}")
             finally:
                 # Clean up temporary file
                 if tmp and os.path.exists(tmp.name):
