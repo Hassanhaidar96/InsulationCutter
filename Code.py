@@ -24,26 +24,26 @@ st.set_page_config(
 USERNAME = "admin"
 PASSWORD = "password123"
 
+# Initialize session state for login
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
 
+def login_page():
+    st.title("Login")
     
-
-st.title("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     
-username = st.text_input("Username")
-password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username == USERNAME and password == PASSWORD:
+            st.session_state.logged_in = True
+            st.rerun()  # This will restart the script with logged_in=True
+        else:
+            st.error("Invalid username or password")
     
-if st.button("Login"):
-    if username == USERNAME and password == PASSWORD:
-        st.session_state.logged_in = True
-        st.rerun()
-    else:
-        st.error("Invalid username or password")
-        st.stop()  # Stops execution here
+    st.write("Please enter your credentials")
             
-    # This code won't run if st.stop() is called
-st.write("Please enter your credentials")
-            
-
+###############################################################################
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
         return Cb - 1, Ct - 1
