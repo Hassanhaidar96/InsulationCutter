@@ -72,26 +72,123 @@ def get_centers_compact(num_ribs):
     }
     return centers.get(num_ribs, [])
 
+# def get_centers_Length(num_ribs, Length):
+#     if num_ribs < 1:
+#         return []
+
+#     first_center = 64.5  # Fixed starting position
+#     if num_ribs == 1:
+#         min_length = first_center + 35  # 64.5 + 35 = 99.5mm
+#         return [first_center] if Length >= min_length else []
+
+#     last_center_max = Length - 35.5  # Maximum allowed last rib center position
+#     best_centers = []
+#     for spacing in range(100, 10000, 100):  
+#         total_span = spacing * (num_ribs - 1)
+#         last_center = first_center + total_span
+#         if last_center <= last_center_max:
+#             centers = [first_center + i * spacing for i in range(num_ribs)]
+#             best_centers = centers
+#         else:
+#             break
+#     return best_centers
+
+def generate_position_order(n):
+    positions = []
+    if n % 2 == 1:
+        mid = n // 2
+        positions.append(mid)
+        for i in range(1, mid + 1):
+            left = mid - i
+            if left >= 0:
+                positions.append(left)
+            right = mid + i
+            if right < n:
+                positions.append(right)
+    else:
+        mid_left = (n // 2) - 1
+        mid_right = mid_left + 1
+        positions.append(mid_left)
+        positions.append(mid_right)
+        for i in range(1, mid_left + 1):
+            left = mid_left - i
+            if left >= 0:
+                positions.append(left)
+            right = mid_right + i
+            if right < n:
+                positions.append(right)
+    return positions
+
 def get_centers_Length(num_ribs, Length):
     if num_ribs < 1:
         return []
-
     first_center = 64.5  # Fixed starting position
     if num_ribs == 1:
-        min_length = first_center + 35  # 64.5 + 35 = 99.5mm
+        min_length = first_center + 35  # 64.5 + 35 = 99.5 mm
         return [first_center] if Length >= min_length else []
+    
+    # Determine the max_ribs based on Length in cm
+    cm = Length // 10  # convert mm to cm, integer division
+    if cm >= 90:
+        max_ribs = 9
+    elif cm >= 80:
+        max_ribs = 8
+    elif cm >= 70:
+        max_ribs = 7
+    elif cm >= 60:
+        max_ribs = 6
+    elif cm >= 50:
+        max_ribs = 5
+    elif cm >= 40:
+        max_ribs = 4
+    elif cm >= 30:
+        max_ribs = 3
+    elif cm >= 20:
+        max_ribs = 2
+    else:  # 11-19 cm
+        max_ribs = 2
+    
+    # Check if num_ribs is within the allowed range for this Length
+    if not (2 <= num_ribs <= max_ribs):
+        return []
+    
+    # Calculate the number of 200 spacings
+    num_200 = max_ribs - num_ribs
+    
+    # Generate spacings
+    n_spacings = num_ribs - 1
+    spacings = [100] * n_spacings
+    
+    # Distribute the 200 spacings symmetrically
+    if num_200 > 0:
+        positions = generate_position_order(n_spacings)
+        # Take the first 'num_200' positions
+        for i in range(num_200):
+            if i < len(positions):
+                pos = positions[i]
+                spacings[pos] += 100  # Convert 100 to 200
+    
+    # Calculate total_span
+    total_span = sum(spacings)
+    
+    # Check if the last_center is within the allowed range
+    last_center = first_center + total_span
+    last_center_max = Length - 35.5
+    if last_center > last_center_max + 1e-9:  # Floating point tolerance
+        return []
+    
+    # Generate the centers
+    centers = [first_center]
+    current = first_center
+    for s in spacings:
+        current += s
+        centers.append(round(current, 1))  # Round to avoid floating point errors
+    
+    return centers
 
-    last_center_max = Length - 35.5  # Maximum allowed last rib center position
-    best_centers = []
-    for spacing in range(100, 10000, 100):  
-        total_span = spacing * (num_ribs - 1)
-        last_center = first_center + total_span
-        if last_center <= last_center_max:
-            centers = [first_center + i * spacing for i in range(num_ribs)]
-            best_centers = centers
-        else:
-            break
-    return best_centers
+
+
+
 
 def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
     if element_length_type == '1m':
