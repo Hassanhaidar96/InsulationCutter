@@ -12,7 +12,7 @@ from ezdxf import units
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
-from io import BytesIO  
+# from io import BytesIO  
 import tempfile
 import os
 
@@ -26,7 +26,7 @@ def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
 
 def get_element_length(element_length_type, num_ribs, Length):
     if element_length_type == '1m':
-        return 1000  # in mm
+        return 1000.0  # in mm
     elif element_length_type == '0.5m':
         return 500  # in mm
     elif element_length_type == 'compact':
@@ -78,9 +78,9 @@ def get_centers_Length(num_ribs, Length):
     last_center_max = Length - 35.5  # Last center must be <= this value
     
     # Determine the maximum number of ribs based on Length (converted to cm)
-    cm = Length // 10  # Convert mm to cm via integer division
+    cm = Length // 10  # Convert mm to cm 
     
-    # Initialize variables to hold spacings
+    # Define variable
     spacings = []
     
     # Determine spacings based on cm range and num_ribs
@@ -176,7 +176,7 @@ def get_centers_Length(num_ribs, Length):
     else:
         return []  # Length is below 20 cm
     
-    # Check if num_ribs is invalid for the cm range
+    # Check if num_ribs is invalid for the range
     if num_ribs < 2 or num_ribs > max_ribs:
         return []
     
@@ -192,7 +192,6 @@ def get_centers_Length(num_ribs, Length):
         return []
     
     return centers
-
 
 
 def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
@@ -263,7 +262,7 @@ def create_dxf(elements_data):
         for start, end in connection_segments:
             msp.add_line((start, y_center), (end, y_center))
 
-        y_offset += big_box_height + 50  # 5cm spacing
+        y_offset += big_box_height + 50  # 5cm spacing - Between Elements
 
     return doc
 
@@ -467,7 +466,7 @@ for i in range(num_elements):
     element_length_mm = get_element_length(element_length_type, num_ribs, Length_custom)
 
     # Calculate dimensions
-    big_box_length = element_length_mm + 10
+    big_box_length = element_length_mm + 10.0
     big_box_height = (Cb + Ct + h_rib) * 10 + 20
     small_box_width = 18 if insulation == 'SW' else 17
     small_box_height = h_rib * 10 + 1.5
