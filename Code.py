@@ -264,14 +264,13 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
 
 def create_dxf(elements_data):
 
-
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
 
-    y_offset = 0  # Start from the top, draw downwards
+    y_offset = 0  # Starts at the top of the first element
 
-    for element in reversed(elements_data):  # Maintain top-to-bottom drawing
+    for element in reversed(elements_data):  # Top-to-bottom drawing
         big_box_length = element['big_box_length']
         big_box_height = element['big_box_height']
         rib_centers = element['rib_centers']
@@ -280,28 +279,30 @@ def create_dxf(elements_data):
         Cb = element['Cb']
         code = element.get('code', '')
 
-        # 🔲 Draw the element's main box at current y_offset
-        bottom_y = y_offset
-        top_y = y_offset + big_box_height
+        # ⬆️ Update y_offset before drawing (top-down logic)
+        y_offset += big_box_height + 50  # 5 cm spacing below this element
 
-        # 🏷️ Add the text label slightly above the top
+        base_y = y_offset - big_box_height - 50  # Bottom of current element
+
+        # 🏷️ Add label text just above the box
         text_x = big_box_length / 2
-        text_y = top_y + 10
+        text_y = y_offset + 10  # 10 mm above the top of this element
         msp.add_text(code, dxfattribs={
-            'height': 10,
+            'height': 50,
             'halign': 1,  # center
             'valign': 1   # bottom
         }).dxf.insert = (text_x, text_y)
 
-        # 📦 Draw main rectangle
+        # 🟦 Draw main box
         msp.add_lwpolyline(
-            [(0, bottom_y), (big_box_length, bottom_y),
-             (big_box_length, top_y), (0, top_y), (0, bottom_y)],
+            [(0, base_y), (big_box_length, base_y),
+             (big_box_length, base_y + big_box_height),
+             (0, base_y + big_box_height), (0, base_y)],
             close=True
         )
 
-        # 📍 Ribs
-        y_initial = bottom_y + (Cb * 10 + 10 - 0.75)
+        # 🟥 Draw ribs
+        y_initial = base_y + (Cb * 10 + 10 - 0.75)
         y_center = y_initial + (small_box_height / 2)
         rib_edges = []
 
@@ -311,12 +312,13 @@ def create_dxf(elements_data):
             msp.add_lwpolyline(
                 [(x1, y_initial), (x2, y_initial),
                  (x2, y_initial + small_box_height),
-                 (x1, y_initial + small_box_height), (x1, y_initial)],
+                 (x1, y_initial + small_box_height),
+                 (x1, y_initial)],
                 close=True
             )
             rib_edges.append((x1, x2))
 
-        # 🔗 Connections between ribs
+        # 🔗 Draw connections
         rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
         current_pos = 0
         connection_segments = []
@@ -331,9 +333,6 @@ def create_dxf(elements_data):
 
         for start, end in connection_segments:
             msp.add_line((start, y_center), (end, y_center))
-
-        # ⬇️ Shift down for next element
-        y_offset += big_box_height + 50  # Add 5cm spacing below this element
 
     return doc
 
