@@ -276,7 +276,7 @@ def create_dxf(elements_data):
         small_box_width = element['small_box_width']
         small_box_height = element['small_box_height']
         Cb = element['Cb']
-        code = element.get('code','')
+        code = str(element.get('code', ''))  # Ensure code is string
     
 
         # Draw main box
@@ -287,14 +287,14 @@ def create_dxf(elements_data):
             close=True
         )
 
-        # 🏷️ Add label text just above the box
+        # Add label text above the box
         text_x = big_box_length / 2
-        text_y = y_offset - 10  
-        msp.add_text(str(code), dxfattribs={
+        text_y = y_offset - 10  # 10 mm above the element
+        msp.add_text(code, dxfattribs={
             'height': 10,
             'halign': 1,  # center
-            'valign': 3   # bottom
-        }).set_pos((text_x, text_y), align='MIDDLE_CENTER')
+            'valign': 3   # bottom (3 = top, 1 = bottom)
+        }).dxf.insert = (text_x, text_y)
 
 
 
