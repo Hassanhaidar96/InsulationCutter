@@ -278,10 +278,17 @@ def create_dxf(elements_data):
         Cb = element['Cb']
         code = element.get('code','')
 
-        # Add text above the main Box
+
+
+
+        # Add text label above the element
         text_x = big_box_length / 2
         text_y = y_offset + big_box_height + 10
-        msp.add_text(code,dxfattribs={'height': 10}).set_pos((text_x,text_y),align='CENTER')
+        msp.add_text(code, dxfattribs={
+            'height': 10,
+            'halign': 1,
+            'valign': 3
+        }).dxf.insert = (text_x, text_y)
 
         # Draw main box
         msp.add_lwpolyline(
