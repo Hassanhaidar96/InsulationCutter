@@ -277,15 +277,7 @@ def create_dxf(elements_data):
         small_box_height = element['small_box_height']
         Cb = element['Cb']
         code = element.get('code','')
-
-        # 🏷️ Add label text just above the box
-        text_x = big_box_length / 2
-        text_y = y_offset + big_box_height + 10  # 10 mm above the top of this element
-        msp.add_text(code, dxfattribs={
-            'height': 10,
-            'halign': 1,  # center
-            'valign': 3   # bottom
-        }).dxf.insert = (text_x, text_y)        
+    
 
         # Draw main box
         msp.add_lwpolyline(
@@ -294,6 +286,17 @@ def create_dxf(elements_data):
              (0, y_offset + big_box_height), (0, y_offset)],
             close=True
         )
+
+        # 🏷️ Add label text just above the box
+        text_x = big_box_length / 2
+        text_y = y_offset - 10  
+        msp.add_text(str(code), dxfattribs={
+            'height': 10,
+            'halign': 1,  # center
+            'valign': 3   # bottom
+        }).set_pos((text_x, text_y), align='MIDDLE_CENTER')
+
+
 
         # Draw ribs
         y_initial = y_offset + (Cb * 10 + 10 - 0.75)
