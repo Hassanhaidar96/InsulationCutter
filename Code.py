@@ -20,12 +20,6 @@ import logging
 ############### User Activity Log #################
 # Configure logging
 logging.basicConfig(
-    filename='user_activity.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s'
-)
-
-def log_action(action, details=None):
     user = "User"  
     log_message = f"{user} - {action}"
     if details:
