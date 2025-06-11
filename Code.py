@@ -18,20 +18,14 @@ import os
 import logging
 
 ############### User Activity Log #################
-# Configure logging
-# logging.basicConfig(
-#     filename='user_activity.log',  
-#     level=logging.INFO,
-#     format='%(asctime)s - %(message)s'
-# )
 
-# Creates log in same directory as your script
-LOG_PATH = os.path.join(os.path.dirname(__file__), 'user_activity.log')
+#Configure logging
 logging.basicConfig(
-    filename=LOG_PATH,
+    filename='./user_activity.log',  
     level=logging.INFO,
     format='%(asctime)s - %(message)s'
 )
+
 
 def log_action(action, details=None):
     user = "User"  
