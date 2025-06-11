@@ -15,6 +15,23 @@ from matplotlib.ticker import FormatStrFormatter
 # from io import BytesIO  
 import tempfile
 import os
+import logging
+
+############### User Activity Log #################
+# Configure logging
+logging.basicConfig(
+    filename='user_activity.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s'
+)
+
+def log_action(action, details=None):
+    user = "User"  
+    log_message = f"{user} - {action}"
+    if details:
+        log_message += f" - {str(details)}"
+    logging.info(log_message)
+###################################################
 
 # Set page config first
 st.set_page_config(
@@ -38,6 +55,9 @@ if not st.session_state.logged_in:
     password = st.text_input("Password", type="password")
     
     if st.button("Login"):
+        
+        log_action("Login pressed") #Recording activity in User Activity
+        
         if username == USERNAME and password == PASSWORD:
             st.session_state.logged_in = True
             st.rerun()  # Restart the script with logged_in=True
@@ -538,6 +558,9 @@ if valid_input and elements_data:
         
         # Visualization
         if st.button('Alle Elemente visualisieren'):
+            
+            log_action("Visualize all elements Pressed") #Recording activity in User Activity
+            
             try:
                 fig = visualize(valid_elements)
                 st.pyplot(fig)  # Removed expander block
@@ -549,6 +572,9 @@ if valid_input and elements_data:
         # Modified DXF Generation
         st.subheader("DXF-Export")
         if st.button('DXF-Datei generieren'):
+            
+            log_action("Generate DXF Pressed") #Recording activity in User Activity
+            
             tmp = None  # Initialize tmp variable for cleanup
             try:
                 # Create temporary file
