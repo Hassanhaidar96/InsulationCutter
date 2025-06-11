@@ -276,6 +276,7 @@ def create_dxf(elements_data):
         small_box_width = element['small_box_width']
         small_box_height = element['small_box_height']
         Cb = element['Cb']
+        code = element.get('code','')
 
         # 🏷️ Add label text just above the box
         text_x = big_box_length / 2
