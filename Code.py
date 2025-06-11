@@ -276,6 +276,12 @@ def create_dxf(elements_data):
         small_box_width = element['small_box_width']
         small_box_height = element['small_box_height']
         Cb = element['Cb']
+        code = element.get('code','')
+
+        # Add text above the main Box
+        text_x = big_box_length / 2
+        text_y = y_offset + big_box_height + 10
+        msp.add_text(code,dxfattribs={'height': 10}).set_pos((text_x,text_y),align='CENTER')
 
         # Draw main box
         msp.add_lwpolyline(
@@ -544,7 +550,8 @@ for i in range(num_elements):
         'rib_centers': rib_centers,
         'small_box_width': small_box_width,
         'small_box_height': small_box_height,
-        'Cb': Cb
+        'Cb': Cb,
+        'code':code
     })
 
 # Visualization and DXF Generation
