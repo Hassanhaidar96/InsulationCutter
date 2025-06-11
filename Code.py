@@ -287,15 +287,16 @@ def create_dxf(elements_data):
             close=True
         )
 
-        # Add text with explicit positioning
-        text_x = big_box_length / 2  # Center of the box
-        text_y = y_offset - 15  # 15mm above the element
-
-        text = msp.add_text(code)
-        text.dxf.height = 10
-        text.dxf.halign = 1  # Center alignment
-        text.dxf.valign = 3  # Top alignment
-        text.set_placement((text_x, text_y), align='MIDDLE_TOP')
+        # Simple reliable text positioning
+        text_x = big_box_length / 2
+        text_y = y_offset - 10  # 10mm above the element
+        
+        msp.add_text(code, dxfattribs={
+            'height': 10,
+            'insert': (text_x, text_y),  # Explicit insert point
+            'halign': 1,  # Center alignment
+            'valign': 3   # Top alignment
+        })
 
         # Draw ribs
         y_initial = y_offset + (Cb * 10 + 10 - 0.75)
