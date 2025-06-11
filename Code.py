@@ -280,15 +280,6 @@ def create_dxf(elements_data):
 
 
 
-        # Add text label above the element
-        text_x = big_box_length / 2
-        text_y = y_offset + big_box_height + 10
-        msp.add_text(code, dxfattribs={
-            'height': 10,
-            'halign': 1,
-            'valign': 3
-        }).dxf.insert = (text_x, text_y)
-
         # Draw main box
         msp.add_lwpolyline(
             [(0, y_offset), (big_box_length, y_offset),
@@ -330,9 +321,20 @@ def create_dxf(elements_data):
         for start, end in connection_segments:
             msp.add_line((start, y_center), (end, y_center))
 
+        # Add text label above the element
+        text_x = big_box_length / 2
+        text_y = y_offset + big_box_height + 10
+        msp.add_text(code, dxfattribs={
+            'height': 10,
+            'halign': 1,
+            'valign': 3
+        }).dxf.insert = (text_x, text_y)
+
         y_offset += big_box_height + 50  # 5cm spacing - Between Elements
 
     return doc
+
+
 
 def visualize(elements_data):
     fig, ax = plt.subplots(figsize=(10, 6))
