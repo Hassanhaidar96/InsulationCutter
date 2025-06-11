@@ -296,8 +296,6 @@ def create_dxf(elements_data):
         msp.add_text(code, dxfattribs={
             'height': 10,
             'insert': (text_x, text_y),  # Explicit insert point
-            'halign': 1,  # Center alignment
-            'valign': 3   # Top alignment
         })
 
         # Draw ribs
