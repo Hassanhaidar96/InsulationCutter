@@ -294,7 +294,7 @@ def create_dxf(elements_data):
             'height': 10,
             'halign': 1,  # center
             'valign': 3   # bottom (3 = top, 1 = bottom)
-        }).dxf.insert = (text_x, text_y)
+        }).dxf.insert = (200, text_y)
 
 
 
