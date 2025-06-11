@@ -289,7 +289,7 @@ def create_dxf(elements_data):
 
         # Simple reliable text positioning
         text_x = 50
-        text_y = y_offset + 20  
+        text_y = y_offset - 20  
         # text_x = 300    
         # text_y = 300
         
