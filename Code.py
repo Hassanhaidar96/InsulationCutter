@@ -280,7 +280,6 @@ def create_dxf(elements_data):
 
 
 
-
         # Add text label above the element
         text_x = big_box_length / 2
         text_y = y_offset + big_box_height + 10
