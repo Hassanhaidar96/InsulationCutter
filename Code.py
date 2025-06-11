@@ -288,10 +288,10 @@ def create_dxf(elements_data):
         )
 
         # Simple reliable text positioning
-        # text_x = big_box_length / 2
-        # text_y = y_offset - 10  # 10mm above the element
-        text_x = 300    
-        text_y = 300
+        text_x = big_box_length / 2
+        text_y = y_offset - 10  # 10mm above the element
+        # text_x = 300    
+        # text_y = 300
         
         msp.add_text(code, dxfattribs={
             'height': 10,
