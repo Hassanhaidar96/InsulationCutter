@@ -2,7 +2,9 @@
 """
 Created on Thu May  1 15:49:15 2025
 @author: hah
-Improved: Dynamic element list with quantities, board packing, side‑by‑side board layout.
+Improved: Dynamic element list with quantities, board packing, side‑by‑side boards.
+UI: width/height in one row, remove buttons aligned.
+Added 20mm margin to board dimensions for cutting clearance.
 """
 
 import streamlit as st
@@ -55,7 +57,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 ###############################################################################
-# Helper functions (mostly unchanged, with minor corrections)
+# Helper functions (unchanged from previous version)
 
 def adjust_h_for_fire_resistance(Cb, Ct, fire_resistance):
     if fire_resistance == 'REI60':
@@ -116,7 +118,6 @@ def get_centers_compact(num_ribs):
     return centers.get(num_ribs, [])
 
 def get_centers_Length(num_ribs, Length):
-    # Length in mm
     first_center = 64.5
     last_center_max = Length - 35.5
     cm = Length // 10
@@ -212,7 +213,7 @@ def get_centers_Length(num_ribs, Length):
         if num_ribs == 2:
             spacings = [100]
     else:
-        return []  # too short
+        return []
 
     if num_ribs < 2 or num_ribs > max_ribs:
         return []
@@ -239,7 +240,6 @@ def calculate_rib_centers(element_length_type, num_ribs, element_length_mm):
         return []
 
 def parse_code(code):
-    """Parse a product code and return a template dictionary with geometry."""
     parts = code.split('/')
     if len(parts) < 6:
         return None, "Ungültiges Format. Erwartet: C/02-11/65.35.08/100/EPS/R0"
@@ -294,7 +294,6 @@ def parse_code(code):
     Cb = Cb_mm / 10.0
     Cb, Ct = adjust_h_for_fire_resistance(Cb, Ct, fire_resistance)
 
-    # Determine element_length_type
     if element_length_code == 100:
         element_length_type = '1m'
     elif element_length_code == 50:
@@ -310,8 +309,14 @@ def parse_code(code):
         Length_custom = 0
     element_length_mm = get_element_length(element_length_type, num_ribs, Length_custom)
 
+    # Drawn dimensions (with margins for drawing)
     big_box_length = element_length_mm + 10.0
     big_box_height = (Cb + Ct + h_rib) * 10 + 20
+
+    # Nominal dimensions (without the extra 10mm)
+    nominal_width = element_length_mm
+    nominal_height = (Cb + Ct + h_rib) * 10
+
     if num_ribs < 5:
         small_box_width = 18 if insulation == 'SW' else 17
     else:
@@ -325,6 +330,8 @@ def parse_code(code):
     template = {
         'width': big_box_length,
         'height': big_box_height,
+        'nominal_width': nominal_width,
+        'nominal_height': nominal_height,
         'rib_centers': rib_centers,
         'small_box_width': small_box_width,
         'small_box_height': small_box_height,
@@ -333,60 +340,66 @@ def parse_code(code):
     }
     return template, None
 
-# Packing algorithm: returns list of placements
-def pack_elements(templates, board_width, board_height):
+# PACKING (top‑down, with margin)
+def pack_elements(templates, board_width, board_height, margin=20):
     """
-    templates: list of element template dicts (in order, with repetitions for quantity)
-    board_width, board_height in mm.
-    Returns list of dicts: {'element': template, 'board': board_index, 'x': x, 'y': y}
+    Uses effective board dimensions = board_width + margin, board_height + margin
+    for fit checks. Elements are placed within the original board area (0..board_width, 0..board_height)
+    but the algorithm allows elements to be placed up to the effective dimensions.
+    However, we still use the original board dimensions for row placement to keep elements inside.
+    We add margin to allow elements with nominal width equal to board_width to fit.
     """
     placements = []
     board_index = 0
-    row_y = 0
     row_x = 0
-    row_height = None  # height of current row (all elements in a row must have same height)
+    row_y = None          # bottom y of current row
+    row_height = None
+
+    effective_width = board_width + margin
+    effective_height = board_height + margin
 
     for elem in templates:
-        w = elem['width']
-        h = elem['height']
+        w = elem['width']          # drawn width (for placement)
+        h = elem['height']         # drawn height (for placement)
+        nw = elem['nominal_width']
+        nh = elem['nominal_height']
 
-        # Check if element fits in board at all
-        if w > board_width or h > board_height:
-            raise ValueError(f"Element {elem['code']} ist breiter oder höher als die Platte!")
+        # Fit check using effective dimensions (allow margin)
+        if nw > effective_width:
+            raise ValueError(f"Element {elem['code']} hat Nennbreite {nw} mm > Plattenbreite mit Rand {effective_width} mm!")
+        if nh > effective_height:
+            raise ValueError(f"Element {elem['code']} hat Nennhöhe {nh} mm > Plattenhöhe mit Rand {effective_height} mm!")
 
         placed = False
         while not placed:
-            # If we have a row height set, check if current element has different height
-            if row_height is not None and row_height != h:
-                # Start a new row
-                new_y = row_y + row_height
-                if new_y + h > board_height:
-                    # Need a new board
-                    board_index += 1
-                    row_y = 0
-                    row_x = 0
-                    row_height = None
-                    continue
-                else:
-                    row_y = new_y
-                    row_x = 0
-                    row_height = h
+            if row_y is None:
+                # start a new row from the top of the effective area? 
+                # We want elements to be placed within the original board, so we start at board_height - h.
+                # But if we use board_height, and nw > board_width, we might overflow horizontally.
+                # We'll allow horizontal overflow up to effective_width.
+                row_y = board_height - h   # top row touches the top of the original board
+                row_height = h
+                row_x = 0
+            else:
+                need_new_row = False
+                if row_height != h:
+                    need_new_row = True
+                elif row_x + w > effective_width:   # use effective width for horizontal check
+                    need_new_row = True
 
-            # Check horizontal fit
-            if row_x + w > board_width:
-                # Start a new row (same board)
-                new_y = row_y + row_height if row_height is not None else row_y + h
-                if new_y + h > board_height:
-                    # Need a new board
-                    board_index += 1
-                    row_y = 0
-                    row_x = 0
-                    row_height = None
-                    continue
-                else:
-                    row_y = new_y
-                    row_x = 0
-                    row_height = h
+                if need_new_row:
+                    new_row_y = row_y - row_height
+                    if new_row_y < 0:
+                        # Need a new board
+                        board_index += 1
+                        row_y = None
+                        row_x = 0
+                        row_height = None
+                        continue
+                    else:
+                        row_y = new_row_y
+                        row_x = 0
+                        row_height = h
 
             # Place element
             placements.append({
@@ -396,55 +409,43 @@ def pack_elements(templates, board_width, board_height):
                 'y': row_y
             })
             row_x += w
-            if row_height is None:
-                row_height = h
             placed = True
 
     return placements
 
-# Visualization function: draws all boards side by side
-def visualize_boards(placements, board_width, board_height):
-    """
-    placements: list from pack_elements
-    board_width, board_height in mm
-    Returns matplotlib figure.
-    """
+# Visualization and DXF functions (use board_width/height as drawn, which are original)
+def visualize_boards(placements, board_width, board_height, margin=20):
     if not placements:
         return None
-
+    # Draw boards with added margin: board_width + margin, board_height + margin
+    eff_width = board_width + margin
+    eff_height = board_height + margin
     num_boards = max(p['board'] for p in placements) + 1
-    gap = 250  # mm between boards
-
-    # Compute total width and height needed
-    total_width = num_boards * (board_width + gap) - gap
-    total_height = board_height
+    gap = 250
+    total_width = num_boards * (eff_width + gap) - gap
+    total_height = eff_height
 
     fig, ax = plt.subplots(figsize=(12, 8))
     ax.set_xlim(0, total_width)
     ax.set_ylim(0, total_height)
 
     for board_idx in range(num_boards):
-        # Offset for this board
-        x_offset = board_idx * (board_width + gap)
-
-        # Draw board outline (dashed)
-        rect = Rectangle((x_offset, 0), board_width, board_height,
+        x_offset = board_idx * (eff_width + gap)
+        # Draw board with margin (dashed)
+        rect = Rectangle((x_offset, 0), eff_width, eff_height,
                          fill=None, edgecolor='black', linestyle=':', linewidth=1.5)
         ax.add_patch(rect)
 
-        # Get placements for this board
         board_placements = [p for p in placements if p['board'] == board_idx]
         for p in board_placements:
             elem = p['element']
             dx = x_offset + p['x']
             dy = p['y']
 
-            # Draw main box (element bounding box)
             ax.add_patch(Rectangle((dx, dy), elem['width'], elem['height'],
                                    fill=None, edgecolor='blue', linewidth=2))
 
-            # Draw ribs
-            y_initial = dy + (elem['Cb'] * 10 + 10 + 0.75)  # same as before
+            y_initial = dy + (elem['Cb'] * 10 + 10 + 0.75)
             y_center = y_initial + (elem['small_box_height'] / 2)
             rib_edges = []
             for center_x in elem['rib_centers']:
@@ -454,7 +455,6 @@ def visualize_boards(placements, board_width, board_height):
                                        fill=None, edgecolor='red', linewidth=2))
                 rib_edges.append((x1, x2))
 
-            # Draw connections (green lines)
             rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
             current_pos = dx
             connection_segments = []
@@ -472,46 +472,35 @@ def visualize_boards(placements, board_width, board_height):
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.set_xlabel("Breite (mm)")
     ax.set_ylabel("Höhe (mm)")
-
-    # Add corner markers (optional)
-    # not necessary
-
     plt.tight_layout()
     return fig
 
-# DXF generation: draws all boards side by side with dashed outlines
-def create_dxf_boards(placements, board_width, board_height):
+def create_dxf_boards(placements, board_width, board_height, margin=20):
     doc = ezdxf.new(dxfversion='R2010', setup=True)
     doc.units = units.MM
     msp = doc.modelspace()
 
-    # Define dashed line type (if not already)
-    # Using existing 'DASHED' or create one
-    # For simplicity, we'll use line with linetype 'DASHED' (which is standard)
-    # But we need to ensure it exists; ezdxf has DASHED in the default linetypes for R2010
-
+    eff_width = board_width + margin
+    eff_height = board_height + margin
     num_boards = max(p['board'] for p in placements) + 1
-    gap = 250  # mm
+    gap = 250
 
     for board_idx in range(num_boards):
-        x_offset = board_idx * (board_width + gap)
+        x_offset = board_idx * (eff_width + gap)
 
-        # Draw board outline as dashed polyline
         points = [(x_offset, 0),
-                  (x_offset + board_width, 0),
-                  (x_offset + board_width, board_height),
-                  (x_offset, board_height),
+                  (x_offset + eff_width, 0),
+                  (x_offset + eff_width, eff_height),
+                  (x_offset, eff_height),
                   (x_offset, 0)]
         msp.add_lwpolyline(points, close=True, dxfattribs={'linetype': 'DASHED'})
 
-        # Get placements for this board
         board_placements = [p for p in placements if p['board'] == board_idx]
         for p in board_placements:
             elem = p['element']
             dx = x_offset + p['x']
             dy = p['y']
 
-            # Draw main box
             msp.add_lwpolyline(
                 [(dx, dy), (dx + elem['width'], dy),
                  (dx + elem['width'], dy + elem['height']),
@@ -519,7 +508,6 @@ def create_dxf_boards(placements, board_width, board_height):
                 close=True
             )
 
-            # Add product code text (at bottom-left, like before)
             text_x = dx + 50
             text_y = dy - 20
             msp.add_text(elem['code'], dxfattribs={
@@ -527,8 +515,7 @@ def create_dxf_boards(placements, board_width, board_height):
                 'insert': (text_x, text_y),
             })
 
-            # Draw ribs
-            y_initial = dy + (elem['Cb'] * 10 + 10 - 0.75)  # using -0.75 as in original DXF
+            y_initial = dy + (elem['Cb'] * 10 + 10 - 0.75)
             y_center = y_initial + (elem['small_box_height'] / 2)
             rib_edges = []
             for center_x in elem['rib_centers']:
@@ -543,7 +530,6 @@ def create_dxf_boards(placements, board_width, board_height):
                 )
                 rib_edges.append((x1, x2))
 
-            # Draw connections
             rib_edges_sorted = sorted(rib_edges, key=lambda x: x[0])
             current_pos = dx
             connection_segments = []
@@ -563,25 +549,27 @@ def create_dxf_boards(placements, board_width, board_height):
 
 st.title('DXF-Generator für FIRIKA Dämmung (mit Plattenanordnung)')
 
-# Board dimensions
-board_width = st.number_input('Plattenbreite (mm)', min_value=1000, value=1200, step=50)
-board_height = st.number_input('Plattenhöhe (mm)', min_value=1000, value=2400, step=50)
+# Board dimensions in one row
+col_w, col_h = st.columns(2)
+with col_w:
+    board_width = st.number_input('Plattenbreite (mm)', min_value=1000, value=1200, step=50)
+with col_h:
+    board_height = st.number_input('Plattenhöhe (mm)', min_value=1000, value=2400, step=50)
 
-# Initialize session state for element list if not present
+# Initialize session state for element list
 if 'element_entries' not in st.session_state:
     st.session_state.element_entries = [{'code': '', 'quantity': 1}]
 
-# Function to add a new row
 def add_row():
     st.session_state.element_entries.append({'code': '', 'quantity': 1})
 
-# Function to remove a row
 def remove_row(index):
     if len(st.session_state.element_entries) > 1:
         st.session_state.element_entries.pop(index)
 
-# Display the dynamic list
 st.subheader("Elemente und Stückzahlen")
+
+# Display rows with aligned remove buttons
 for i, entry in enumerate(st.session_state.element_entries):
     cols = st.columns([4, 1, 1])
     with cols[0]:
@@ -589,6 +577,7 @@ for i, entry in enumerate(st.session_state.element_entries):
     with cols[1]:
         new_qty = st.number_input(f"Menge {i+1}", min_value=1, value=entry['quantity'], step=1, key=f"qty_{i}")
     with cols[2]:
+        st.write("")  # placeholder to align button vertically
         if st.button("Entfernen", key=f"remove_{i}"):
             remove_row(i)
             st.rerun()
@@ -601,8 +590,6 @@ st.button("Element hinzufügen", on_click=add_row)
 # Buttons for visualization and DXF
 if st.button('Platten visualisieren'):
     log_action("Visualize boards pressed")
-
-    # Parse all entries, build a flat list of templates (with repetitions)
     templates = []
     errors = []
     for entry in st.session_state.element_entries:
@@ -615,7 +602,6 @@ if st.button('Platten visualisieren'):
         if err:
             errors.append(f"Fehler bei Code '{code}': {err}")
             continue
-        # Repeat according to quantity
         for _ in range(qty):
             templates.append(template)
 
@@ -626,8 +612,8 @@ if st.button('Platten visualisieren'):
         st.warning("Keine gültigen Elemente eingegeben.")
     else:
         try:
-            placements = pack_elements(templates, board_width, board_height)
-            fig = visualize_boards(placements, board_width, board_height)
+            placements = pack_elements(templates, board_width, board_height, margin=20)
+            fig = visualize_boards(placements, board_width, board_height, margin=20)
             if fig:
                 st.pyplot(fig)
             else:
@@ -635,12 +621,9 @@ if st.button('Platten visualisieren'):
         except Exception as e:
             st.error(f"Fehler beim Packen: {str(e)}")
 
-# DXF Export
 st.subheader("DXF-Export")
 if st.button('DXF-Datei generieren'):
     log_action("Generate DXF pressed")
-
-    # Same parsing and packing as above
     templates = []
     errors = []
     for entry in st.session_state.element_entries:
@@ -663,8 +646,8 @@ if st.button('DXF-Datei generieren'):
         st.warning("Keine gültigen Elemente eingegeben.")
     else:
         try:
-            placements = pack_elements(templates, board_width, board_height)
-            doc = create_dxf_boards(placements, board_width, board_height)
+            placements = pack_elements(templates, board_width, board_height, margin=20)
+            doc = create_dxf_boards(placements, board_width, board_height, margin=20)
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.dxf')
             doc.saveas(tmp.name)
             tmp.close()
